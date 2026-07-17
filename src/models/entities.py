@@ -3,6 +3,7 @@ CareerCraft Agent — 核心数据模型定义
 
 SQLAlchemy 2.0 ORM 实体，支持异步操作。
 严格遵循 PRD v1.0 第 5 节数据模型设计。
+Sprint 4 扩充 JobDesc / JobMatch 字段以支持 JD 解析与匹配服务。
 """
 
 from __future__ import annotations
@@ -161,12 +162,26 @@ class JobDesc(Base):
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     company: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    # Sprint 4 新增字段
+    years_of_experience: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    salary_range: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    job_type: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # full_time, part_time, contract, intern
+    education_requirement: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    responsibilities: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    benefits: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     parsed_skills: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
     source: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True
     )  # manual, crawler_boss, crawler_liepin
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     # 关系
@@ -191,6 +206,10 @@ class JobMatch(Base):
     match_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 ~ 100
     matched_skills: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
     missing_skills: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    # Sprint 4 新增字段
+    score_breakdown: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tracking_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="new"
     )  # new, interested, applied, interviewing, offered, rejected, ghosted, accepted, declined

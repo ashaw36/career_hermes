@@ -2,17 +2,20 @@
 CareerCraft Agent — LLM 路由器
 
 统一对外 LLM 调用接口，支持流式输出、超时控制、故障降级。
-Sprint 1 实现单模型通义千问集成，预留多模型扩展口。
+Sprint 1 实现单模型通义千问集成，Sprint 4 新增多模型自动降级。
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 
 from src.config.settings import CareerCraftSettings, LLMProviderConfig, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class LLMError(Exception):
@@ -62,8 +65,14 @@ class LLMRouter:
             )
         return self._client
 
-    def _resolve_provider(self) -> LLMProviderConfig:
+    def _resolve_provider(self, provider_name: Optional[str] = None) -> LLMProviderConfig:
         """解析当前使用的 LLM 供应商配置"""
+        if provider_name:
+            for p in self.settings.llm_providers:
+                if p.name == provider_name and p.enabled:
+                    return p
+            raise LLMError(f"未找到启用的 LLM 供应商: {provider_name}")
+
         if not self._provider:
             default_name = self.settings.default_llm_provider
             for p in self.settings.llm_providers:
@@ -74,6 +83,14 @@ class LLMRouter:
                 raise LLMError(f"未找到启用的 LLM 供应商: {default_name}")
         return self._provider
 
+    def _get_all_enabled_providers(self) -> List[LLMProviderConfig]:
+        """获取所有启用的供应商，默认供应商排在第一位"""
+        enabled = [p for p in self.settings.llm_providers if p.enabled]
+        default_name = self.settings.default_llm_provider
+        # 将默认供应商移到最前面
+        enabled.sort(key=lambda p: (p.name != default_name, p.name))
+        return enabled
+
     async def chat(
         self,
         messages: List[Dict[str, str]],
@@ -83,7 +100,7 @@ class LLMRouter:
         json_mode: bool = False,
     ) -> str | AsyncIterator[str]:
         """
-        统一对话接口
+        统一对话接口（支持多模型自动降级）
 
         Args:
             messages: OpenAI 格式消息列表，e.g. [{"role": "user", "content": "..."}]
@@ -95,7 +112,59 @@ class LLMRouter:
         Returns:
             非流式时返回完整字符串；流式时返回 AsyncIterator[str]
         """
-        provider = self._resolve_provider()
+        providers = self._get_all_enabled_providers()
+        if not providers:
+            raise LLMError("没有启用的 LLM 供应商")
+
+        last_error: Optional[Exception] = None
+
+        for provider in providers:
+            try:
+                return await self._chat_single(
+                    provider=provider,
+                    messages=messages,
+                    model=model,
+                    temperature=temperature,
+                    stream=stream,
+                    json_mode=json_mode,
+                )
+            except (LLMTimeoutError, LLMRateLimitError, httpx.HTTPStatusError) as e:
+                last_error = e
+                logger.warning(
+                    "LLM 供应商 %s 调用失败，尝试下一个: %s",
+                    provider.name,
+                    e,
+                )
+                continue
+            except LLMError as e:
+                # 其他 LLMError 不降级（如 API Key 未配置）
+                if provider.name == providers[-1].name:
+                    raise
+                last_error = e
+                logger.warning(
+                    "LLM 供应商 %s 错误: %s",
+                    provider.name,
+                    e,
+                )
+                continue
+
+        # 所有供应商都失败
+        if last_error:
+            raise last_error
+        raise LLMError("所有启用的 LLM 供应商均调用失败")
+
+    async def _chat_single(
+        self,
+        provider: LLMProviderConfig,
+        messages: List[Dict[str, str]],
+        model: Optional[str],
+        temperature: float,
+        stream: bool,
+        json_mode: bool,
+    ) -> str | AsyncIterator[str]:
+        """
+        单供应商对话（原 chat() 的核心逻辑）
+        """
         use_model = model or provider.default_model
 
         if not provider.api_key:
@@ -123,7 +192,9 @@ class LLMRouter:
 
         try:
             if stream:
-                return self._stream_chat(client, url, headers, payload, provider.name, use_model)
+                return self._stream_chat(
+                    client, url, headers, payload, provider.name, use_model
+                )
             else:
                 return await self._complete_chat(
                     client, url, headers, payload, provider.name, use_model

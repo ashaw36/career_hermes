@@ -17,6 +17,7 @@ try:
     import keyring
     KEYRING_AVAILABLE = True
 except ImportError:
+    keyring = None  # type: ignore
     KEYRING_AVAILABLE = False
 
 try:

@@ -1,6 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
+> 当前阶段：Sprint 3 核心完成， Sprint 4-6 连续推进中
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -34,11 +35,11 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | **Phase 2 — 规划** | ✅ 已完成 | PRD v1.0（含P0/P1/P2、验收标准、用户旅程） |
 | **Phase 3 — 方案** | ✅ 已完成 | 架构设计 v1.0、Epic/Story 拆分、就绪检查 |
 | **Sprint 1 (Week 1-2)** | ✅ 已完成 | 项目骨架、数据库ORM、LLM路由、安全存储 |
-| **Sprint 2 (Week 3-4)** | ✅ 核心代码完成 | 经历管理服务、角色引擎、Fit Score 计算 |
-| Sprint 3 (Week 5-6) | 🔄 待启动 | 智能录入、简历渲染 |
-| Sprint 4 (Week 7-8) | ⏳ 待启动 | 经历重述、多模型、JD解析 |
-| Sprint 5 (Week 9-10) | ⏳ 待启动 | 岗位匹配、Gap可视化、学习推荐 |
-| Sprint 6 (Week 11-12) | ⏳ 待启动 | Polish、测试、打包、文档 |
+| **Sprint 2 (Week 3-4)** | ✅ 已完成 | 经历管理服务、角色引擎、Fit Score 计算 |
+| **Sprint 3 (Week 5-6)** | ✅ 核心完成 | 简历生成引擎（Jinja2+Fit Score排序）、对话引擎（意图识别） |
+| **Sprint 4 (Week 7-8)** | 🔄 进行中 | JD解析服务、经历重述引擎、多模型容错、JobMatch模型 |
+| Sprint 5 (Week 9-10) | ⏳ 待启动 | 岗位匹配算法、Gap可视化、学习路径推荐 |
+| Sprint 6 (Week 11-12) | ⏳ 待启动 | GUI完善、Polish、测试补齐、打包、文档 |
 
 ## 📁 核心文件清单
 
@@ -53,17 +54,29 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 ### 源代码 `src/`
 | 路径 | 行数 | 说明 |
 |-------|------|------|
-| `src/models/entities.py` | 235 | 7张核心ORM表（Experience/Persona/SkillNode/JobDesc/JobMatch/LearningPath/RoleExperienceWeight） |
-| `src/models/database.py` | 70 | 异步SQLite引擎、WAL模式、会话管理 |
-| `src/config/settings.py` | 154 | Pydantic Settings + YAML配置 + 多模型LLM供应商配置 |
-| `src/llm/router.py` | 205 | LLM路由器，支持流式/非流式、超时、降级 |
-| `src/services/experience_manager.py` | 230 | 经历CRUD、对话式录入、时间冲突检测、草稿状态机 |
-| `src/services/persona_engine.py` | 230 | 角色CRUD、Fit Score计算（关键词×权重）、经历筛选排序 |
-| `src/utils/security.py` | 170 | API Key加密存储（keyring/Fernet）、主密码派生 |
-| `src/ui/main_window.py` | 163 | PySide6主窗口骨架、页面导航、全局异常处理 |
-| `src/main.py` | 41 | 应用入口（数据库初始化 → GUI启动） |
+| `src/models/entities.py` | 235 | 7张核心ORM表 |
+| `src/models/database.py` | 70 | 异步SQLite引擎、WAL模式 |
+| `src/config/settings.py` | 154 | Pydantic Settings + YAML配置 |
+| `src/llm/router.py` | 205 | LLM路由器，流式/超时/降级 |
+| `src/services/experience_manager.py` | 232 | 经历CRUD、对话式录入、冲突检测 |
+| `src/services/persona_engine.py` | 238 | 角色CRUD、Fit Score计算 |
+| `src/services/resume_builder.py` | 166 | 简历渲染引擎（Jinja2模板） |
+| `src/services/conversation_engine.py` | 100 | 自然语言意图识别 |
+| `src/utils/security.py` | 185 | API Key加密存储（keyring/Fernet） |
+| `src/ui/main_window.py` | 163 | PySide6主窗口骨架 |
+| `src/main.py` | 41 | 应用入口 |
 
-**~~总代码量：~1,500行~~**
+**总代码量：~1,835 行（不含测试）**
+
+### 测试 `tests/`
+| 路径 | 说明 |
+|------|------|
+| `tests/conftest.py` | pytest-asyncio配置 + 内存数据库fixture |
+| `tests/test_experience_manager.py` | 经历CRUD、冲突检测测试 |
+| `tests/test_persona_engine.py` | 角色引擎、Fit Score测试 |
+| `tests/test_resume_builder.py` | 简历渲染上下文测试 |
+| `tests/test_security.py` | API Key安全存储测试 |
+| `tests/test_router.py` | LLM Router（mock httpx）测试 |
 
 ## 📁 Git 提交历史
 
@@ -71,6 +84,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 |--------|------|
 | `d3cfa85` | Sprint 1: 项目骨架 + 数据库ORM + LLM路由 + 安全存储 |
 | `8b4e6b8` | Sprint 2: 经历管理服务 + 角色引擎 + Fit Score 计算 |
+| `62bae86` | docs: 更新 INDEX.md 项目状态，Sprint 1-2 完成 |
+| `837104b` | feat(sprint3): 简历生成引擎 + 对话引擎 + Jinja2模板 |
+| `6f3f234` | docs: 添加 README.md 快速启动指南 |
 
 ## 📋 Notion 映射
 
@@ -85,6 +101,11 @@ source .venv/bin/activate
 python -m src.main
 ```
 
+运行测试：
+```bash
+pytest tests/ -v --tb=short
+```
+
 ## 📝 变更日志
 
-- **2026-07-17** — 项目初始化，BMAD 骨架搭建，Phase 1-3 完成，Sprint 1-2 核心代码落地
+- **2026-07-17** — Sprint 3 核心完成；启动 Sprint 4-6 连续推进；补齐单元测试框架

@@ -52,10 +52,19 @@ class LLMRouter:
             print(chunk, end="")
     """
 
-    def __init__(self, settings: Optional[CareerCraftSettings] = None) -> None:
+    def __init__(self, settings: Optional[CareerCraftSettings] = None, mock: bool = False) -> None:
         self.settings = settings or get_settings()
         self._client: Optional[httpx.AsyncClient] = None
         self._provider: Optional[LLMProviderConfig] = None
+        self._mock = mock
+
+    def enable_mock(self) -> None:
+        """启用 Mock 模式，不调用真实 LLM，返回简单模拟响应"""
+        self._mock = True
+
+    def disable_mock(self) -> None:
+        """关闭 Mock 模式"""
+        self._mock = False
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -112,6 +121,9 @@ class LLMRouter:
         Returns:
             非流式时返回完整字符串；流式时返回 AsyncIterator[str]
         """
+        if self._mock:
+            return self._mock_response(messages, json_mode)
+
         providers = self._get_all_enabled_providers()
         if not providers:
             raise LLMError("没有启用的 LLM 供应商")
@@ -274,3 +286,30 @@ class LLMRouter:
         if self._client:
             await self._client.aclose()
             self._client = None
+
+    def _mock_response(
+        self, messages: List[Dict[str, str]], json_mode: bool
+    ) -> str:
+        """
+        Mock 响应生成器，用于开发测试无需真实 API Key。
+
+        根据用户消息内容返回简单模拟结果：
+        - 如果消息包含 JSON/JSON 数组 关键词，返回简单 JSON
+        - 否则返回简短文本确认
+        """
+        user_content = ""
+        for m in messages:
+            if m.get("role") == "user":
+                user_content = m.get("content", "")
+                break
+
+        if json_mode or "json" in user_content.lower():
+            return '[{"type": "course", "title": "Mock 学习资源", "source": "Mock", "estimated_hours": 10, "priority": 1}]'
+
+        if "岗位" in user_content or "jd" in user_content.lower() or "job" in user_content.lower():
+            return '{"title": "Mock 岗位", "company": "MockCorp", "parsed_skills": ["Python", "SQL"], "location": "北京"}'
+
+        if "经历" in user_content or "experience" in user_content.lower():
+            return "这是一段重述后的模拟经历摘要，突出了用户在目标岗位上的匹配能力。"
+
+        return "这是 Mock 模式的自动响应，用于开发测试。"

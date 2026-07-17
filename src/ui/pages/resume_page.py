@@ -89,11 +89,18 @@ class ResumePage(QWidget):
         )
         bottom_bar.addWidget(self.btn_export)
 
+        self.btn_export_pdf = QPushButton("导出 PDF")
+        self.btn_export_pdf.setStyleSheet(
+            "QPushButton { background-color: #e74c3c; color: white; padding: 6px 18px; }"
+        )
+        bottom_bar.addWidget(self.btn_export_pdf)
+
         layout.addLayout(bottom_bar)
 
         # 信号连接
         self.btn_generate.clicked.connect(self._on_generate)
         self.btn_export.clicked.connect(self._on_export)
+        self.btn_export_pdf.clicked.connect(self._on_export_pdf)
 
     @staticmethod
     def _run_async(coro: Any) -> Any:
@@ -167,3 +174,56 @@ class ResumePage(QWidget):
             QMessageBox.information(self, "成功", f"已导出到：\n{filepath}")
         except Exception as exc:
             QMessageBox.critical(self, "导出失败", f"写入文件失败：\n{exc}")
+
+    def _on_export_pdf(self) -> None:
+        """导出 PDF 文件。"""
+        persona_id = self.combo_persona.currentData()
+        if not persona_id:
+            QMessageBox.warning(self, "校验失败", "请选择角色。")
+            return
+
+        try:
+            from src.services.pdf_exporter import PDFExporter, PDFExporterError, FPDF_AVAILABLE
+
+            if not FPDF_AVAILABLE:
+                QMessageBox.warning(
+                    self, "缺少依赖",
+                    "PDF 导出需要 fpdf2 库。\n\n请运行：\npip install fpdf2"
+                )
+                return
+
+            settings = get_settings()
+            default_dir = settings.export_dir
+            default_name = f"简历_{self.combo_persona.currentText()}.pdf"
+            filepath, _filter = QFileDialog.getSaveFileName(
+                self,
+                "导出 PDF 简历",
+                str(Path(default_dir) / default_name),
+                "PDF 文件 (*.pdf)",
+            )
+            if not filepath:
+                return
+
+            # 加载角色和经历
+            persona = self._run_async(
+                self.persona_engine.get_by_id(persona_id)
+            )
+            if not persona:
+                QMessageBox.warning(self, "错误", "无法加载角色信息。")
+                return
+
+            from src.services.experience_manager import ExperienceManager
+            exp_mgr = ExperienceManager()
+            experiences = self._run_async(
+                exp_mgr.list_by_user(status_filter="confirmed")
+            )
+
+            exporter = PDFExporter()
+            self._run_async(
+                exporter.save_resume(persona, experiences, Path(filepath))
+            )
+            QMessageBox.information(self, "成功", f"PDF 已导出到：\n{filepath}")
+        except PDFExporterError as exc:
+            QMessageBox.critical(self, "导出失败", str(exc))
+        except Exception as exc:
+            QMessageBox.critical(self, "导出失败", f"生成 PDF 时出错：\n{exc}")

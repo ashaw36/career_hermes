@@ -100,6 +100,9 @@ class JobMatchPage(QWidget):
         self._job_table.cellClicked.connect(self._on_job_selected)
         left_layout.addWidget(self._job_table)
 
+        # 行号到 job_id 映射
+        self._job_id_map: List[str] = []
+
         refresh_btn = QPushButton("刷新列表")
         refresh_btn.clicked.connect(self._load_job_list)
         left_layout.addWidget(refresh_btn)
@@ -164,8 +167,10 @@ class JobMatchPage(QWidget):
         """加载 JD 列表"""
         try:
             jobs = self._run_async(self._job_parser.list_all(limit=50))
+            self._job_id_map = []
             self._job_table.setRowCount(len(jobs))
             for i, job in enumerate(jobs):
+                self._job_id_map.append(job.id)
                 self._job_table.setItem(i, 0, QTableWidgetItem(job.title or "未命名"))
                 self._job_table.setItem(i, 1, QTableWidgetItem(job.company or "-"))
                 self._job_table.setItem(i, 2, QTableWidgetItem(job.location or "-"))
@@ -214,8 +219,9 @@ class JobMatchPage(QWidget):
 
     def _on_job_selected(self, row: int, column: int) -> None:
         """点击列表中的岗位"""
-        # 通过行号获取 job_id 比较困难，这里简化处理
-        pass
+        if 0 <= row < len(self._job_id_map):
+            job_id = self._job_id_map[row]
+            self._on_view_job(job_id)
 
     def _on_view_job(self, job_id: str) -> None:
         """查看某个岗位的匹配结果"""

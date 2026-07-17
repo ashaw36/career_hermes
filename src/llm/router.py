@@ -9,13 +9,50 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, TypeVar
 
 import httpx
 
 from src.config.settings import CareerCraftSettings, LLMProviderConfig, get_settings
 
 logger = logging.getLogger(__name__)
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def retry_on_llm_error(max_retries: int = 3, backoff_base: float = 1.0):
+    """
+    重试装饰器：在 LLM 调用失败时自动重试，指数退避。
+
+    仅对 transient 错误（超时、限流、HTTP 5xx）触发重试，
+    配置错误（API Key 未配置等）不重试。
+    """
+    def decorator(fn: F) -> F:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_error: Optional[Exception] = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    return await fn(*args, **kwargs)
+                except (LLMTimeoutError, LLMRateLimitError, httpx.HTTPStatusError) as e:
+                    last_error = e
+                    if isinstance(e, httpx.HTTPStatusError) and e.response.status_code < 500:
+                        # 4xx 错误不重试
+                        raise
+                    wait = backoff_base * (2 ** (attempt - 1))
+                    logger.warning(
+                        "LLM 调用失败（第 %d/%d 次），%.1f 秒后重试: %s",
+                        attempt, max_retries, wait, e
+                    )
+                    import asyncio
+                    await asyncio.sleep(wait)
+                except LLMError:
+                    # 其他 LLMError 不重试
+                    raise
+            if last_error:
+                raise last_error
+            raise LLMError("重试次数耗尽")
+        return wrapper  # type: ignore[return-value]
+    return decorator
 
 
 class LLMError(Exception):
@@ -165,6 +202,7 @@ class LLMRouter:
             raise last_error
         raise LLMError("所有启用的 LLM 供应商均调用失败")
 
+    @retry_on_llm_error(max_retries=3, backoff_base=1.0)
     async def _chat_single(
         self,
         provider: LLMProviderConfig,
@@ -304,12 +342,16 @@ class LLMRouter:
                 break
 
         if json_mode or "json" in user_content.lower():
-            return '[{"type": "course", "title": "Mock 学习资源", "source": "Mock", "estimated_hours": 10, "priority": 1}]'
+            # 根据 prompt 内容返回合适结构
+            if "学习" in user_content or "资源" in user_content or "learning" in user_content.lower():
+                return '[{"type": "course", "title": "Mock 学习资源", "source": "Mock", "estimated_hours": 10, "priority": 1}]'
+            # 经历提取 / 岗位解析 需要 dict
+            return '{"title": "Mock 标题", "organization": "MockCorp", "start_date": "2024-01-01", "end_date": "2024-12-31", "type": "work", "structured_achievements": ["成果1"], "skills_demonstrated": ["Python", "SQL"], "metrics": {"效率": "+40%"}}'
 
         if "岗位" in user_content or "jd" in user_content.lower() or "job" in user_content.lower():
             return '{"title": "Mock 岗位", "company": "MockCorp", "parsed_skills": ["Python", "SQL"], "location": "北京"}'
 
-        if "经历" in user_content or "experience" in user_content.lower():
+        if "重述" in user_content or "retell" in user_content.lower() or "narrative" in user_content.lower():
             return "这是一段重述后的模拟经历摘要，突出了用户在目标岗位上的匹配能力。"
 
         return "这是 Mock 模式的自动响应，用于开发测试。"

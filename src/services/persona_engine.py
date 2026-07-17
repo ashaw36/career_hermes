@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.models.database import AsyncSessionLocal
 from src.models.entities import Experience, Persona, RoleExperienceWeight
@@ -175,6 +176,7 @@ class PersonaEngine:
         async with AsyncSessionLocal() as session:
             stmt = (
                 select(RoleExperienceWeight)
+                .options(selectinload(RoleExperienceWeight.experience))
                 .where(
                     RoleExperienceWeight.persona_id == persona_id,
                     RoleExperienceWeight.relevance_score >= min_score,

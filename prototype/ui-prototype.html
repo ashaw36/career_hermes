@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareerCraft Agent — 职业智能体</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="qwebchannel.js"></script>
+  <style>
+    /* ─── Linear Design System Tokens ─── */
+    :root {
+      --bg-canvas: #08090a;
+      --bg-panel: #0f1011;
+      --bg-surface: #191a1b;
+      --bg-elevated: #28282c;
+      --text-primary: #f7f8f8;
+      --text-secondary: #d0d6e0;
+      --text-tertiary: #8a8f98;
+      --text-quaternary: #62666d;
+      --accent-brand: #5e6ad2;
+      --accent-violet: #7170ff;
+      --accent-hover: #828fff;
+      --border-subtle: rgba(255,255,255,0.05);
+      --border-standard: rgba(255,255,255,0.08);
+      --border-solid: #23252a;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-pill: 9999px;
+      --shadow-elevated: rgba(0,0,0,0.4) 0px 2px 4px;
+      --shadow-dialog: rgba(0,0,0,0) 0px 8px 2px, rgba(0,0,0,0.01) 0px 5px 2px, rgba(0,0,0,0.04) 0px 3px 2px, rgba(0,0,0,0.07) 0px 1px 1px, rgba(0,0,0,0.08) 0px 0px 1px;
+    }
+    /* ─── Icons ─── */
+    .icon svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+    .nav-icon { width: 18px; height: 18px; opacity: 0.7; display: flex; align-items: center; justify-content: center; }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .exp-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.05); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .exp-icon svg { width: 18px; height: 18px; }
+
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      font-feature-settings: "cv01", "ss03";
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Layout ─── */
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 220px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 16px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent-brand), var(--accent-violet));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .brand-text {
+      font-size: 15px;
+      font-weight: 590;
+      letter-spacing: -0.165px;
+      color: var(--text-primary);
+    }
+
+    .brand-version {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-quaternary);
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nav-section {
+      margin-bottom: 20px;
+    }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 510;
+      color: var(--text-quaternary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0 8px 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--text-tertiary);
+      font-size: 14px;
+      font-weight: 510;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.04);
+      color: var(--text-secondary);
+    }
+
+    .nav-item.active {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      width: 3px;
+      height: 20px;
+      background: var(--accent-violet);
+      border-radius: 0 2px 2px 0;
+    }
+
+
+
+    /* ─── Main Content ─── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      height: 52px;
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 590;
+      color: var(--text-primary);
+      letter-spacing: -0.165px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ─── Buttons ─── */
+    .btn {
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 510;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.02);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-solid);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+    }
+
+    .btn-primary {
+      background: var(--accent-brand);
+      color: #fff;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    /* ─── Content Area ─── */
+    .content {
+      flex: 1;
+      overflow: auto;
+      padding: 24px;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ─── Cards ─── */
+    .card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-standard);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      transition: all 0.15s ease;
+    }
+
+    .card:hover {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 590;
+      color: var(--text-primary);
+      letter-spacing: -0.165px;
+    }
+
+    .card-meta {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    .card-body {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ─── Grid ─── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ─── Experience List ─── */
+    .exp-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .exp-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .exp-item:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: var(--border-standard);
+    }
+
+    .exp-item.selected {
+      background: rgba(94,106,210,0.08);
+      border-color: rgba(94,106,210,0.3);
+    }
+
+    .exp-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.05); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    .exp-info { flex: 1; min-width: 0; }
+
+    .exp-title {
+      font-size: 14px;
+      font-weight: 510;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .exp-sub {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    .exp-tags {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Tags / Pills ─── */
+    .pill {
+      padding: 2px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 510;
+      border: 1px solid var(--border-solid);
+      color: var(--text-tertiary);
+      background: transparent;
+    }
+
+    .pill-accent {
+      background: rgba(94,106,210,0.15);
+      border-color: rgba(94,106,210,0.3);
+      color: var(--accent-violet);
+    }
+
+    .pill-success {
+      background: rgba(16,185,129,0.15);
+      border-color: rgba(16,185,129,0.3);
+      color: var(--success);
+    }
+
+    /* ─── Form Elements ─── */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 510;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+      width: 100%;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-standard);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.15s ease;
+      outline: none;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+      border-color: var(--accent-brand);
+      box-shadow: 0 0 0 3px rgba(94,106,210,0.15);
+    }
+
+    .form-textarea {
+      min-height: 80px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    .form-select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238a8f98' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .form-select option {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    /* ─── Split Panel ─── */
+    .split {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+      height: calc(100vh - 120px);
+    }
+
+    .split-left {
+      overflow: auto;
+    }
+
+    .split-right {
+      overflow: auto;
+    }
+
+    /* ─── Resume Preview ─── */
+    .resume-preview {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-standard);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .resume-preview h1 {
+      font-size: 28px;
+      font-weight: 510;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .resume-preview h2 {
+      font-size: 18px;
+      font-weight: 590;
+      color: var(--text-primary);
+      margin: 24px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .resume-preview h3 {
+      font-size: 15px;
+      font-weight: 590;
+      color: var(--text-primary);
+      margin: 16px 0 8px;
+    }
+
+    .resume-preview blockquote {
+      border-left: 2px solid var(--accent-brand);
+      padding-left: 16px;
+      margin: 12px 0;
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+
+    .resume-preview ul {
+      margin: 8px 0 8px 20px;
+    }
+
+    .resume-preview li {
+      margin: 4px 0;
+    }
+
+    .resume-preview code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: rgba(255,255,255,0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--accent-violet);
+    }
+
+    /* ─── Match Score ─── */
+    .score-ring {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .score-ring svg {
+      position: absolute;
+      transform: rotate(-90deg);
+    }
+
+    .score-value {
+      font-size: 22px;
+      font-weight: 590;
+      color: var(--text-primary);
+    }
+
+    .match-card {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-standard);
+      border-radius: var(--radius-md);
+      margin-bottom: 12px;
+    }
+
+    .match-info { flex: 1; }
+
+    .match-title {
+      font-size: 15px;
+      font-weight: 590;
+      color: var(--text-primary);
+    }
+
+    .match-company {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    .match-skills {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ─── Dashboard Stats ─── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      padding: 20px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 510;
+      color: var(--text-primary);
+      letter-spacing: -1px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Welcome Page ─── */
+    .welcome-hero {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .welcome-hero h1 {
+      font-size: 48px;
+      font-weight: 510;
+      letter-spacing: -1.056px;
+      line-height: 1.1;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .welcome-hero p {
+      font-size: 18px;
+      color: var(--text-tertiary);
+      max-width: 560px;
+      margin: 0 auto 32px;
+      line-height: 1.6;
+    }
+
+    .welcome-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-solid); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-quaternary); }
+
+    /* ─── Section Title ─── */
+    .section-title {
+      font-size: 20px;
+      font-weight: 590;
+      color: var(--text-primary);
+      letter-spacing: -0.24px;
+      margin-bottom: 16px;
+    }
+
+    .section-subtitle {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-bottom: 20px;
+    }
+
+    /* ─── Toolbar ─── */
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 900px) {
+      .split { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .sidebar { width: 60px; padding: 16px 8px; }
+      .brand-text, .nav-label, .nav-item span { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">C</div>
+        <span class="brand-text">CareerCraft</span>
+        <span class="brand-version">v0.1</span>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">核心</div>
+        <button class="nav-item active" onclick="switchPage('welcome')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span>欢迎</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('experiences')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
+          <span>经历库</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('personas')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <span>角色档案</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('resume')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+          <span>简历生成</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('jobs')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+          <span>岗位匹配</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">系统</div>
+        <button class="nav-item" onclick="switchPage('settings')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+          <span>设置</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="header">
+        <span class="header-title" id="page-title">欢迎</span>
+        <div class="header-actions">
+          <button class="btn btn-ghost btn-sm">Mock 模式</button>
+          <button class="btn btn-primary btn-sm">+ 新建</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- Welcome Page -->
+        <div class="page active" id="page-welcome">
+          <div class="welcome-hero">
+            <h1>CareerCraft Agent</h1>
+            <p>角色档案驱动的职业智能体。管理经历、构建角色、生成简历、匹配岗位 — 全部在一个工作流中完成。</p>
+            <div class="welcome-actions">
+              <button class="btn btn-primary">开始录入经历</button>
+              <button class="btn btn-ghost">查看角色档案</button>
+            </div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-experiences">12</div>
+              <div class="stat-label">已录入经历</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-personas">3</div>
+              <div class="stat-label">角色档案</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-matches">8</div>
+              <div class="stat-label">岗位匹配</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-paths">2</div>
+              <div class="stat-label">学习路径</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Experiences Page -->
+        <div class="page" id="page-experiences">
+          <div class="split">
+            <div class="split-left">
+              <div class="toolbar">
+                <span class="section-title">经历库</span>
+                <div class="toolbar-spacer"></div>
+                <button class="btn btn-primary btn-sm">+ 新建</button>
+              </div>
+              <div class="exp-list" id="exp-list-container">
+                <div class="exp-item selected">
+                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+                  <div class="exp-info">
+                    <div class="exp-title">供应链数字化平台</div>
+                    <div class="exp-sub">产品经理 · 韶音科技 · 2024.01 — 至今</div>
+                  </div>
+                  <div class="exp-tags">
+                    <span class="pill pill-accent">PM</span>
+                  </div>
+                </div>
+                <div class="exp-item">
+                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+                  <div class="exp-info">
+                    <div class="exp-title">AI Agent 运维助手</div>
+                    <div class="exp-sub">产品经理 · 美团 · 2023.06 — 2023.12</div>
+                  </div>
+                  <div class="exp-tags">
+                    <span class="pill">AI</span>
+                  </div>
+                </div>
+                <div class="exp-item">
+                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg></div>
+                  <div class="exp-info">
+                    <div class="exp-title">多模态情绪识别研究</div>
+                    <div class="exp-sub">研究生项目 · 中山大学 · 2022.09 — 2023.05</div>
+                  </div>
+                  <div class="exp-tags">
+                    <span class="pill">ML</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="split-right">
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">供应链数字化平台</div>
+                    <div class="card-meta">产品经理 @ 韶音科技 · 2024.01 — 至今</div>
+                  </div>
+                  <div class="exp-tags">
+                    <span class="pill pill-success">已确认</span>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p>负责供应链数字化平台的产品规划与落地，协调研发、运营、采购多部门配合，实现了从订单到仓库的全链路自动化。</p>
+                  <div style="margin-top: 12px;">
+                    <span class="pill">Python</span>
+                    <span class="pill">SQL</span>
+                    <span class="pill">产品规划</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-top: 16px;">
+                <div class="form-group">
+                  <label class="form-label">项目描述</label>
+                  <textarea class="form-textarea">负责供应链数字化平台的产品规划与落地...</textarea>
+                </div>
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">开始时间</label>
+                    <input class="form-input" type="text" value="2024-01">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">结束时间</label>
+                    <input class="form-input" type="text" value="至今">
+                  </div>
+                </div>
+                <div class="toolbar" style="margin-top: 8px;">
+                  <button class="btn btn-primary">保存</button>
+                  <button class="btn btn-ghost">删除</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personas Page -->
+        <div class="page" id="page-personas">
+          <div class="split">
+            <div class="split-left">
+              <div class="toolbar">
+                <span class="section-title">角色档案</span>
+                <div class="toolbar-spacer"></div>
+                <button class="btn btn-primary btn-sm">+ 新建角色</button>
+              </div>
+              <div class="exp-list" id="persona-list-container">
+                <div class="exp-item selected">
+                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                  <div class="exp-info">
+                    <div class="exp-title">产品经理角色</div>
+                    <div class="exp-sub">供应链PM · 5段经历 · 创建 2024-06</div>
+                  </div>
+                  <div class="exp-tags">
+                    <span class="pill pill-accent">默认</span>
+                  </div>
+                </div>
+                <div class="exp-item">
+                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></div>
+                  <div class="exp-info">
+                    <div class="exp-title">AI产品经理角色</div>
+                    <div class="exp-sub">AI Agent方向 · 3段经历 · 创建 2024-07</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="split-right">
+              <div class="card">
+                <div class="form-group">
+                  <label class="form-label">角色名称</label>
+                  <input class="form-input" value="产品经理角色">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">身份声明</label>
+                  <textarea class="form-textarea">供应链数字化产品经理，擅长跨部门协作与全链路自动化...</textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">语气风格</label>
+                  <select class="form-select">
+                    <option>business_insight</option>
+                    <option>data_driven</option>
+                    <option>technical_deep</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">目标岗位</label>
+                  <input class="form-input" value="产品经理, 供应链PM, AI产品经理">
+                </div>
+                <div class="toolbar">
+                  <button class="btn btn-primary">保存角色</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resume Page -->
+        <div class="page" id="page-resume">
+          <div class="toolbar">
+            <span class="section-title">简历生成</span>
+            <div class="toolbar-spacer"></div>
+            <select class="form-select" style="width: 160px;">
+              <option>产品经理角色</option>
+              <option>AI产品经理角色</option>
+            </select>
+            <button class="btn btn-ghost btn-sm">导出 Markdown</button>
+            <button class="btn btn-primary btn-sm">导出 PDF</button>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div class="section-subtitle">基于「产品经理角色」生成的简历预览</div>
+              <div class="resume-preview">
+                <h1>产品经理角色</h1>
+                <blockquote>供应链数字化产品经理，擅长跨部门协作与全链路自动化...</blockquote>
+
+                <h2>工作经历</h2>
+                <h3>供应链数字化平台 | 韶音科技</h3>
+                <p><em>2024.01 — 至今</em> | <span style="color: var(--accent-violet);">相关度: 85%</span></p>
+                <ul>
+                  <li>负责供应链数字化平台的产品规划与落地</li>
+                  <li>协调研发、运营、采购多部门配合</li>
+                  <li>实现从订单到仓库的全链路自动化</li>
+                </ul>
+                <p><strong>技能</strong>: Python、SQL、产品规划</p>
+
+                <h3>AI Agent 运维助手 | 美团</h3>
+                <p><em>2023.06 — 2023.12</em></p>
+                <ul>
+                  <li>主导 AI 运维助手的产品设计与迭代</li>
+                  <li>基于 RAG 架构搭建运维知识库</li>
+                </ul>
+
+                <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 24px 0;">
+                <p style="font-size: 12px; color: var(--text-quaternary);">
+                  <em>由 CareerCraft Agent 生成于 2024-07-17</em>
+                </p>
+              </div>
+            </div>
+            <div>
+              <div class="section-subtitle">技能覆盖分析</div>
+              <div class="card" style="margin-bottom: 12px;">
+                <div class="card-title">已覆盖技能 (8)</div>
+                <div style="margin-top: 10px;">
+                  <span class="pill pill-success">Python</span>
+                  <span class="pill pill-success">SQL</span>
+                  <span class="pill pill-success">产品规划</span>
+                  <span class="pill pill-success">RAG</span>
+                  <span class="pill pill-success">数据分析</span>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title">缺失技能 (3)</div>
+                <div style="margin-top: 10px;">
+                  <span class="pill">Kubernetes</span>
+                  <span class="pill">gRPC</span>
+                  <span class="pill">微服务</span>
+                </div>
+                <button class="btn btn-primary" style="margin-top: 14px; width: 100%;">生成学习路径</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Jobs Page -->
+        <div class="page" id="page-jobs">
+          <div class="toolbar">
+            <span class="section-title">岗位匹配</span>
+            <div class="toolbar-spacer"></div>
+            <button class="btn btn-ghost btn-sm">导入 JD</button>
+            <button class="btn btn-primary btn-sm">+ 添加岗位</button>
+          </div>
+
+          <div class="match-card">
+            <div class="score-ring">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
+                <circle cx="40" cy="40" r="36" fill="none" stroke="var(--accent-brand)" stroke-width="4"
+                  stroke-dasharray="226" stroke-dashoffset="45" stroke-linecap="round"/>
+              </svg>
+              <span class="score-value">80</span>
+            </div>
+            <div class="match-info">
+              <div class="match-title">高级产品经理</div>
+              <div class="match-company">字节跳动 · 深圳 · 3-5年经验</div>
+              <div class="match-skills">
+                <span class="pill pill-success">Python</span>
+                <span class="pill pill-success">数据分析</span>
+                <span class="pill pill-success">产品规划</span>
+                <span class="pill">微服务</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-ghost btn-sm">查看报告</button>
+              <button class="btn btn-primary btn-sm">生成简历</button>
+            </div>
+          </div>
+
+          <div class="match-card">
+            <div class="score-ring">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
+                <circle cx="40" cy="40" r="36" fill="none" stroke="var(--warning)" stroke-width="4"
+                  stroke-dasharray="226" stroke-dashoffset="136" stroke-linecap="round"/>
+              </svg>
+              <span class="score-value">40</span>
+            </div>
+            <div class="match-info">
+              <div class="match-title">后端开发工程师</div>
+              <div class="match-company">腾讯 · 广州 · 5年以上</div>
+              <div class="match-skills">
+                <span class="pill pill-success">Python</span>
+                <span class="pill">Go</span>
+                <span class="pill">Kubernetes</span>
+                <span class="pill">gRPC</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-ghost btn-sm">查看报告</button>
+              <button class="btn btn-ghost btn-sm">生成学习路径</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div class="page" id="page-settings">
+          <div class="section-title">设置</div>
+          <div class="grid-2" style="max-width: 640px;">
+            <div class="card">
+              <div class="card-title">LLM 配置</div>
+              <div style="margin-top: 16px;">
+                <div class="form-group">
+                  <label class="form-label">默认模型</label>
+                  <select class="form-select">
+                    <option>gpt-4o</option>
+                    <option>claude-3-5-sonnet</option>
+                    <option>qwen-turbo</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">API Key</label>
+                  <input class="form-input" type="password" value="sk-••••••••••••••">
+                </div>
+                <div class="toolbar">
+                  <button class="btn btn-primary">保存配置</button>
+                  <button class="btn btn-ghost">测试连接</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">应用偏好</div>
+              <div style="margin-top: 16px;">
+                <div class="form-group">
+                  <label class="form-label">主题</label>
+                  <select class="form-select">
+                    <option>深色 (默认)</option>
+                    <option>浅色</option>
+                    <option>跟随系统</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">默认经历数</label>
+                  <input class="form-input" type="number" value="5">
+                </div>
+                <div class="toolbar">
+                  <button class="btn btn-primary">保存偏好</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /* ─── QWebChannel Bridge ─── */
+    window.pybridge = null;
+    window.pybridgeReady = false;
+
+    function initBridge() {
+      if (typeof qt === 'undefined' || !qt.webChannelTransport) {
+        console.log('[Bridge] Qt WebChannel not available — running in standalone browser mode');
+        window.pybridgeReady = false;
+        return;
+      }
+      new QWebChannel(qt.webChannelTransport, function(channel) {
+        window.pybridge = channel.objects.pybridge;
+        window.pybridgeReady = true;
+        console.log('[Bridge] Python bridge connected');
+        loadDataFromPython();
+      });
+    }
+
+    function loadDataFromPython() {
+      if (!window.pybridge) return;
+
+      // Welcome stats
+      window.pybridge.getStats(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) updateStats(resp.data);
+        } catch (e) { console.error('getStats error', e); }
+      });
+
+      // Experiences
+      window.pybridge.getExperiences(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) renderExperiences(resp.data);
+        } catch (e) { console.error('getExperiences error', e); }
+      });
+
+      // Personas
+      window.pybridge.getPersonas(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) renderPersonas(resp.data);
+        } catch (e) { console.error('getPersonas error', e); }
+      });
+    }
+
+    /* ─── UI Helpers ─── */
+    function switchPage(pageId, navEl) {
+      document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+      document.getElementById('page-' + pageId).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+      if (navEl) {
+        navEl.classList.add('active');
+      } else {
+        var map = {welcome:0, experiences:1, personas:2, resume:3, jobs:4, settings:5};
+        var items = document.querySelectorAll('.nav-item');
+        if (items[map[pageId]]) items[map[pageId]].classList.add('active');
+      }
+      var titles = {welcome: '欢迎', experiences: '经历库', personas: '角色档案', resume: '简历生成', jobs: '岗位匹配', settings: '设置'};
+      document.getElementById('page-title').textContent = titles[pageId];
+    }
+
+    function updateStats(data) {
+      var el = document.getElementById('stat-experiences');
+      if (el && data.experiencesCount != null) el.textContent = data.experiencesCount;
+      el = document.getElementById('stat-personas');
+      if (el && data.personasCount != null) el.textContent = data.personasCount;
+      el = document.getElementById('stat-matches');
+      if (el && data.jobMatches != null) el.textContent = data.jobMatches;
+      el = document.getElementById('stat-paths');
+      if (el && data.learningPaths != null) el.textContent = data.learningPaths;
+    }
+
+    function renderExperiences(list) {
+      if (!list || !list.length) return;
+      var container = document.getElementById('exp-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+      list.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'exp-item';
+        div.innerHTML =
+          '<div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>' +
+          '<div class="exp-info">' +
+            '<div class="exp-title">' + escapeHtml(item.title || '') + '</div>' +
+            '<div class="exp-sub">' + escapeHtml((item.role || '') + ' · ' + (item.company || '') + ' · ' + (item.start_date || '')) + '</div>' +
+          '</div>' +
+          '<div class="exp-tags">' + (item.skills || []).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>';
+        container.appendChild(div);
+      });
+    }
+
+    function renderPersonas(list) {
+      if (!list || !list.length) return;
+      var container = document.getElementById('persona-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+      list.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'exp-item';
+        div.innerHTML =
+          '<div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>' +
+          '<div class="exp-info">' +
+            '<div class="exp-title">' + escapeHtml(item.name || '') + '</div>' +
+            '<div class="exp-sub">' + escapeHtml((item.identity_statement || '').substring(0, 40)) + '</div>' +
+          '</div>';
+        container.appendChild(div);
+      });
+    }
+
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /* ─── Page init ─── */
+    document.addEventListener('DOMContentLoaded', function() {
+      initBridge();
+      // URL hash routing
+      var page = new URLSearchParams(window.location.search).get('page');
+      if (page) switchPage(page, null);
+    });
+  </script>
+</body>
+</html>

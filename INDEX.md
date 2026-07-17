@@ -49,6 +49,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || **Sprint 4 (Week 7-8)** | ✅ 已完成 | JD解析服务、经历重述引擎、多模型容错降级、JobMatcher |
 || **Sprint 5 (Week 9-10)** | ✅ 已完成 | 岗位匹配算法、Gap分析、学习路径推荐（learning_recommender） |
 || **Sprint 6 (Week 11-12)** | ✅ 已完成 | GUI完善（经历/角色/简历/岗位页面）、Polish、测试补齐 |
+|| **Sprint 7 (Week 13-14)** | ✅ 已完成 | WebView混合架构（QWebEngineView + QWebChannel）、HTML原型桥接、SVG图标修复 |
 
 ## 📁 核心文件清单
 
@@ -66,30 +67,38 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/models/entities.py` | 254 | 7张核心ORM表（已扩展JobDesc/JobMatch/LearningPath） |
 | `src/models/database.py` | 70 | 异步SQLite引擎、WAL模式 |
 | `src/config/settings.py` | 154 | Pydantic Settings + YAML配置 |
-| `src/llm/router.py` | 242 | LLM路由器，支持多模型自动降级（timeout/rate-limit/HTTP错误） |
+| `src/llm/router.py` | 300+ | LLM路由器，多模型自动降级 + 重试装饰器（指数退避） |
 | `src/llm/prompts/*.py` | 183 | LLM Prompt模板（job_parsing、retelling、job_matching） |
-| `src/services/experience_manager.py` | 232 | 经历CRUD、对话式录入、冲突检测 |
-| `src/services/persona_engine.py` | 238 | 角色CRUD、Fit Score计算 |
+| `src/services/experience_manager.py` | 248 | 经历CRUD、对话式录入、冲突检测 |
+| `src/services/persona_engine.py` | 240 | 角色CRUD、Fit Score计算 |
 | `src/services/resume_builder.py` | 166 | 简历渲染引擎（Jinja2模板） |
 | `src/services/conversation_engine.py` | 100 | 自然语言意图识别 |
 | `src/services/job_parser.py` | 236 | JD解析服务（模板+LLM回退） |
 | `src/services/retelling_engine.py` | 247 | 经历重述引擎（归纳+扩展两模式） |
-| `src/services/job_matcher.py` | 330 | 岗位匹配器（规则算法：技能60%、经验30%、其他10%） |
+| `src/services/job_matcher.py` | 376 | 岗位匹配器（规则算法：技能60%、经验30%、其他10%） |
 | `src/services/learning_recommender.py` | 294 | 学习路径推荐（LLM回退+本地模板库） |
 | `src/services/pdf_exporter.py` | 242 | PDF简历导出服务（fpdf2） |
 | `src/services/import_parser.py` | 372 | 经历批量导入解析器（Markdown/文本/JSON） |
 | `src/crawlers/base.py` | 101 | 爬虫基类（Playwright封装） |
 | `src/crawlers/boss_zhipin.py` | 141 | Boss直聘爬虫 |
+| `src/crawlers/jd_crawler.py` | 80 | JD爬虫存根（Mock模式） |
 | `src/ui/main_window.py` | 243 | PySide6主窗口（六页面导航） |
 | `src/ui/pages/experience_page.py` | 311 | 经历管理页面 |
 | `src/ui/pages/persona_page.py` | 342 | 角色配置页面 |
 | `src/ui/pages/resume_page.py` | 225 | 简历预览页面（支持Markdown+PDF导出） |
 | `src/ui/pages/job_match_page.py` | 316 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新、行点击查看详情） |
+| `src/ui/webview/bridge.py` | 120 | QWebChannel Python桥接（7个API端点） |
+| `src/ui/webview/webview_window.py` | 110 | WebView主窗口（QWebEngineView + DevTools） |
+| `src/ui/webview/api_handler.py` | 230 | 同步API适配层（异步Service → 同步Bridge） |
+| `src/ui/webview/__init__.py` | 6 | WebView模块导出 |
+| `src/main_webview.py` | 35 | WebView版应用入口 |
 | `src/utils/security.py` | 186 | API Key加密存储（keyring/Fernet） |
-| `src/main.py` | 41 | 应用入口 |
+| `src/main.py` | 41 | 原生PySide6应用入口 |
 | `build.py` | 71 | PyInstaller 打包脚本 |
+| `prototype/ui-prototype.html` | 1,200 | Linear深色风格HTML原型（6页面 + JS桥接） |
+| `prototype/qwebchannel.js` | 456 | Qt WebChannel JS库 |
 
-**总代码量：~4,800 行（不含测试）**
+**总代码量：~5,200 行（不含测试）**
 
 ### 测试 `tests/`
 | 路径 | 说明 |
@@ -102,12 +111,12 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `tests/test_router.py` | LLM Router（mock httpx）测试 |
 | `tests/test_job_matcher.py` | 岗位匹配算法、状态更新测试 |
 | `tests/test_learning_recommender.py` | 学习路径推荐测试 |
-
 | `tests/test_pdf_exporter.py` | PDF导出服务测试 |
 | `tests/test_router_mock.py` | LLM Router Mock 模式测试 |
 | `tests/test_import_parser.py` | 经历批量导入解析测试 |
+| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（8个） |
 
-**测试总数：74 个用例，全部通过**
+**测试总数：82 个用例，全部通过**
 
 ## 📁 Git 提交历史
 

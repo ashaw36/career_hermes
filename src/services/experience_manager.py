@@ -27,6 +27,22 @@ class ExperienceDraft:
         self.extracted = extracted
         self.user_edits: Optional[Dict[str, Any]] = None
 
+    @property
+    def title(self) -> str:
+        return str(self.extracted.get("title", ""))
+
+    @property
+    def skills(self) -> List[str]:
+        return list(self.extracted.get("skills_demonstrated", []) or [])
+
+    @property
+    def period(self) -> str:
+        s = self.extracted.get("start_date", "")
+        e = self.extracted.get("end_date", "")
+        if s and e:
+            return f"{s} ~ {e}"
+        return str(s or e or "")
+
     def to_dict(self) -> Dict[str, Any]:
         data = dict(self.extracted)
         data["raw_description"] = self.raw_text

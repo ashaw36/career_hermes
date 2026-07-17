@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 1-6 全部完成**，待续接真实 LLM 进行端到端验证、PDF 导出、打包发布
+> 当前阶段：**Sprint 1-6 全部完成，三大限制已优化**，待续接真实 LLM 进行端到端验证、PyInstaller 打包
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -65,17 +65,19 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/services/conversation_engine.py` | 100 | 自然语言意图识别 |
 | `src/services/job_parser.py` | 236 | JD解析服务（模板+LLM回退） |
 | `src/services/retelling_engine.py` | 247 | 经历重述引擎（归纳+扩展两模式） |
-| `src/services/job_matcher.py` | 330 | 岗位匹配器（规刖算法：技能60%、经验30%、其他10%） |
+| `src/services/job_matcher.py` | 330 | 岗位匹配器（规则算法：技能60%、经验30%、其他10%） |
 | `src/services/learning_recommender.py` | 294 | 学习路径推荐（LLM回退+本地模板库） |
+| `src/services/pdf_exporter.py` | 242 | PDF简历导出服务（fpdf2） |
 | `src/ui/main_window.py` | 243 | PySide6主窗口（六页面导航） |
 | `src/ui/pages/experience_page.py` | 311 | 经历管理页面 |
 | `src/ui/pages/persona_page.py` | 342 | 角色配置页面 |
-| `src/ui/pages/resume_page.py` | 169 | 简历预览页面 |
-| `src/ui/pages/job_match_page.py` | 310 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新） |
+| `src/ui/pages/resume_page.py` | 225 | 简历预览页面（支持Markdown+PDF导出） |
+| `src/ui/pages/job_match_page.py` | 316 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新、行点击查看详情） |
 | `src/utils/security.py` | 186 | API Key加密存储（keyring/Fernet） |
 | `src/main.py` | 41 | 应用入口 |
+| `build.py` | 71 | PyInstaller 打包脚本 |
 
-**总代码量：~3,640 行（不含测试）**
+**总代码量：~4,000 行（不含测试）**
 
 ### 测试 `tests/`
 | 路径 | 说明 |
@@ -89,7 +91,10 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `tests/test_job_matcher.py` | 岗位匹配算法、状态更新测试 |
 | `tests/test_learning_recommender.py` | 学习路径推荐测试 |
 
-**测试总数：53 个用例，全部通过**
+| `tests/test_pdf_exporter.py` | PDF导出服务测试 |
+| `tests/test_router_mock.py` | LLM Router Mock 模式测试 |
+
+**测试总数：63 个用例，全部通过**
 
 ## 📁 Git 提交历史
 
@@ -101,6 +106,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `837104b` | feat(sprint3): 简历生成引擎 + 对话引擎 + Jinja2模板 |
 | `6f3f234` | docs: 添加 README.md 快速启动指南 |
 | `a949267` | feat: Sprint 4-6 完成 — 岗位匹配、学习路径、GUI完善、53测试通过 |
+| `ba175a7` | feat: 优化三大限制 + 打包 — 行点击修复、Mock LLM、PDF导出、PyInstaller脚本、63测试通过 |
 
 ## 📋 Notion 映射
 
@@ -121,6 +127,13 @@ pytest tests/ -v --tb=short
 ```
 
 ## 📝 变更日志
+
+- **2026-07-17** — 三大限制优化 + 打包基础：
+  - 修复 `job_match_page` 行点击：通过 `_job_id_map` 映射表实现点击表格行查看匹配详情
+  - 添加 LLM Mock 模式：`LLMRouter(mock=True)` 或 `enable_mock()`，开发测试无需真实 API Key
+  - 新增 PDF 导出服务 `pdf_exporter.py` + UI "导出 PDF" 按钮（依赖 fpdf2）
+  - 新增 PyInstaller 打包脚本 `build.py`
+  - 补 10 个单元测试（Mock + PDF），总计 **63 个测试全部通过**
 
 - **2026-07-17** — Sprint 1-6 全部完成：
   - Sprint 4: JD解析(job_parser)、经历重述(retelling_engine)、JobMatcher(规则匹配)、router多模型降级

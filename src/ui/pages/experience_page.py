@@ -7,6 +7,7 @@ CareerCraft Agent — 经历管理页面
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import date
 from typing import Any, Dict, List, Optional
 
@@ -32,6 +33,8 @@ from PySide6.QtWidgets import (
 
 from src.models.entities import Experience
 from src.services.experience_manager import ExperienceManager
+
+logger = logging.getLogger(__name__)
 
 
 class ExperiencePage(QWidget):
@@ -69,8 +72,14 @@ class ExperiencePage(QWidget):
         self.btn_delete.setToolTip("软删除选中经历（移至 archived）")
         self.btn_refresh = QPushButton("刷新")
         self.btn_refresh.setToolTip("重新加载经历列表")
+        self.btn_import = QPushButton("批量导入")
+        self.btn_import.setToolTip("从 Markdown/文本/JSON 导入经历")
+        self.btn_import.setStyleSheet(
+            "QPushButton { background-color: #3498db; color: white; }"
+        )
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_delete)
+        toolbar.addWidget(self.btn_import)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
         left_layout.addLayout(toolbar)
@@ -149,6 +158,7 @@ class ExperiencePage(QWidget):
         # 信号连接
         self.btn_new.clicked.connect(self._on_new)
         self.btn_delete.clicked.connect(self._on_delete)
+        self.btn_import.clicked.connect(self._on_import)
         self.btn_refresh.clicked.connect(self._load_data)
         self.btn_save.clicked.connect(self._on_save)
         self.list_widget.currentItemChanged.connect(self._on_item_changed)
@@ -309,3 +319,125 @@ class ExperiencePage(QWidget):
             if item and item.data(Qt.ItemDataRole.UserRole) == self._current_exp_id:
                 self.list_widget.setCurrentItem(item)
                 break
+
+    def _on_import(self) -> None:
+        """打开批量导入对话框。"""
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QTextEdit, QPushButton, QLabel
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("批量导入经历")
+        dialog.setMinimumSize(600, 500)
+        layout = QVBoxLayout(dialog)
+
+        # 格式说明
+        info = QLabel(
+            "支持 Markdown、纯文本、JSON 三种格式。\n"
+            "Markdown 建议使用 ## 标题分类，### 标题标注经历。\n"
+            "JSON 需为对象数组，每个对象含 title, type 等字段。"
+        )
+        info.setStyleSheet("color: #666; font-size: 12px;")
+        layout.addWidget(info)
+
+        # Tab 切换
+        tabs = QTabWidget()
+        md_edit = QTextEdit()
+        md_edit.setPlaceholderText("粘贴 Markdown 格式经历...")
+        text_edit = QTextEdit()
+        text_edit.setPlaceholderText("粘贴纯文本格式经历...")
+        json_edit = QTextEdit()
+        json_edit.setPlaceholderText('粘贴 JSON 格式经历...\n例: [{"title": "...", "type": "work"}]')
+        tabs.addTab(md_edit, "Markdown")
+        tabs.addTab(text_edit, "纯文本")
+        tabs.addTab(json_edit, "JSON")
+        layout.addWidget(tabs)
+
+        # 底部按钮
+        btn_bar = QHBoxLayout()
+        btn_bar.addStretch()
+
+        btn_load_file = QPushButton("从文件加载")
+        btn_load_file.clicked.connect(lambda: self._load_import_file(tabs, md_edit, text_edit, json_edit))
+        btn_bar.addWidget(btn_load_file)
+
+        btn_import = QPushButton("导入")
+        btn_import.setStyleSheet("QPushButton { background-color: #27ae60; color: white; padding: 6px 24px; }")
+        btn_import.clicked.connect(lambda: self._do_import(dialog, tabs, md_edit, text_edit, json_edit))
+        btn_bar.addWidget(btn_import)
+
+        btn_cancel = QPushButton("取消")
+        btn_cancel.clicked.connect(dialog.reject)
+        btn_bar.addWidget(btn_cancel)
+        layout.addLayout(btn_bar)
+
+        dialog.exec()
+
+    def _load_import_file(self, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any) -> None:
+        """从文件加载导入内容"""
+        filepath, _filter = QFileDialog.getOpenFileName(
+            self, "选择经历文件", "", "Markdown (*.md);;Text (*.txt);;JSON (*.json);;All Files (*.*)"
+        )
+        if not filepath:
+            return
+        try:
+            content = Path(filepath).read_text(encoding="utf-8")
+            if filepath.endswith(".md"):
+                tabs.setCurrentIndex(0)
+                md_edit.setPlainText(content)
+            elif filepath.endswith(".json"):
+                tabs.setCurrentIndex(2)
+                json_edit.setPlainText(content)
+            else:
+                tabs.setCurrentIndex(1)
+                text_edit.setPlainText(content)
+        except Exception as exc:
+            QMessageBox.critical(self, "读取失败", f"无法读取文件:\n{exc}")
+
+    def _do_import(self, dialog: Any, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any) -> None:
+        """执行导入"""
+        from src.services.import_parser import ImportParser, ImportParserError
+
+        idx = tabs.currentIndex()
+        if idx == 0:
+            text = md_edit.toPlainText().strip()
+            if not text:
+                QMessageBox.warning(self, "空内容", "请先粘贴 Markdown 内容。")
+                return
+            parser_method = ImportParser().parse_markdown
+        elif idx == 2:
+            text = json_edit.toPlainText().strip()
+            if not text:
+                QMessageBox.warning(self, "空内容", "请先粘贴 JSON 内容。")
+                return
+            parser_method = ImportParser().parse_json
+        else:
+            text = text_edit.toPlainText().strip()
+            if not text:
+                QMessageBox.warning(self, "空内容", "请先粘贴文本内容。")
+                return
+            parser_method = ImportParser().parse_text
+
+        try:
+            drafts = self._run_async(parser_method(text))
+            if not drafts:
+                QMessageBox.information(self, "无数据", "未能解析出有效的经历，请检查格式。")
+                return
+
+            # 一个一个保存
+            success = 0
+            for draft in drafts:
+                try:
+                    self._run_async(self.manager.confirm_and_save(draft))
+                    success += 1
+                except Exception as e:
+                    logger.warning("导入单条经历失败: %s", e)
+
+            QMessageBox.information(
+                self, "导入完成",
+                f"成功导入 {success} / {len(drafts)} 条经历。"
+            )
+            self._load_data()
+            dialog.accept()
+        except ImportParserError as exc:
+            QMessageBox.critical(self, "解析失败", f"格式解析失败:\n{exc}")
+        except Exception as exc:
+            QMessageBox.critical(self, "导入失败", f"导入过程中出错:\n{exc}")

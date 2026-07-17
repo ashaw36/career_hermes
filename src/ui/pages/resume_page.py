@@ -57,7 +57,7 @@ class ResumePage(QWidget):
 
         control_bar.addWidget(QLabel("模板："))
         self.combo_template = QComboBox()
-        self.combo_template.addItems(["modern"])
+        self.combo_template.addItems(["modern", "classic", "minimal", "tech", "外企"])
         self.combo_template.setMinimumWidth(120)
         control_bar.addWidget(self.combo_template)
 

@@ -77,6 +77,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/services/job_matcher.py` | 330 | 岗位匹配器（规则算法：技能60%、经验30%、其他10%） |
 | `src/services/learning_recommender.py` | 294 | 学习路径推荐（LLM回退+本地模板库） |
 | `src/services/pdf_exporter.py` | 242 | PDF简历导出服务（fpdf2） |
+| `src/services/import_parser.py` | 372 | 经历批量导入解析器（Markdown/文本/JSON） |
+| `src/crawlers/base.py` | 101 | 爬虫基类（Playwright封装） |
+| `src/crawlers/boss_zhipin.py` | 141 | Boss直聘爬虫 |
 | `src/ui/main_window.py` | 243 | PySide6主窗口（六页面导航） |
 | `src/ui/pages/experience_page.py` | 311 | 经历管理页面 |
 | `src/ui/pages/persona_page.py` | 342 | 角色配置页面 |
@@ -86,7 +89,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/main.py` | 41 | 应用入口 |
 | `build.py` | 71 | PyInstaller 打包脚本 |
 
-**总代码量：~4,000 行（不含测试）**
+**总代码量：~4,800 行（不含测试）**
 
 ### 测试 `tests/`
 | 路径 | 说明 |
@@ -102,8 +105,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 
 | `tests/test_pdf_exporter.py` | PDF导出服务测试 |
 | `tests/test_router_mock.py` | LLM Router Mock 模式测试 |
+| `tests/test_import_parser.py` | 经历批量导入解析测试 |
 
-**测试总数：63 个用例，全部通过**
+**测试总数：74 个用例，全部通过**
 
 ## 📁 Git 提交历史
 
@@ -116,6 +120,8 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `6f3f234` | docs: 添加 README.md 快速启动指南 |
 | `a949267` | feat: Sprint 4-6 完成 — 岗位匹配、学习路径、GUI完善、53测试通过 |
 | `ba175a7` | feat: 优化三大限制 + 打包 — 行点击修复、Mock LLM、PDF导出、PyInstaller脚本、63测试通过 |
+| `10e6c7a` | docs: 产品功能路线图 v1.0 + INDEX更新 — 锁定差异化/模板/云同步决策 |
+| `3dd4441` | feat(Sprint7): 经历批量导入 + 爬虫框架 + 模板选择 — 74测试通过 |
 
 ## 📋 Notion 映射
 
@@ -136,6 +142,14 @@ pytest tests/ -v --tb=short
 ```
 
 ## 📝 变更日志
+
+- **2026-07-17** — Sprint 7 推进：
+  - 新增 `import_parser.py`：支持 Markdown/文本/JSON 三种格式经历批量导入，解决冷启动问题
+  - 新增 `crawlers/` 框架：BaseCrawler + BossZhipinCrawler（Playwright）
+  - 更新 `experience_page.py`：添加批量导入UI（Tab切换+文件加载）
+  - 更新 `resume_page.py`：模板选择扩展为 5 种（modern/classic/minimal/tech/外企）
+  - 补 11 个单元测试，总计 **74 个测试全部通过**
+  - 代码量：~4,800 行
 
 - **2026-07-17** — 三大限制优化 + 打包基础：
   - 修复 `job_match_page` 行点击：通过 `_job_id_map` 映射表实现点击表格行查看匹配详情

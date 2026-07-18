@@ -421,9 +421,9 @@ class ImportParser:
         try:
             items = json.loads(json_str)
         except json.JSONDecodeError as e:
-            logger.warning("文件分析 JSON 解析失败，尝试整行解析: %s", e)
-            # 尝试从响应中提取第一个 JSON 数组
-            match = re.search(r"\[.*\]", response.replace("\n", " "), re.DOTALL)
+            logger.warning("文件分析 JSON 解析失败，尝试整体解析: %s", e)
+            # 尝试从响应中提取第一个 JSON 数组（非贪婪匹配，保留换行）
+            match = re.search(r"\[.*?\]", response, re.DOTALL)
             if not match:
                 raise ImportParserError(f"无法解析 LLM 返回: {e}")
             try:
@@ -447,19 +447,23 @@ class ImportParser:
                     for m in metrics_raw if isinstance(m, dict)
                 ]
 
+            title = item.get("title") or item.get("标题") or ""
+            if not title:
+                logger.warning("跳过无标题的经历条目")
+                continue
+
             exp = ParsedExperience(
-                title=item.get("title", ""),
-                exp_type=item.get("type", "work"),
-                organization=item.get("organization") or item.get("company"),
-                start_date=self._parse_date(item.get("start_date")),
-                end_date=self._parse_date(item.get("end_date")),
-                raw_description=item.get("raw_description") or item.get("description", ""),
-                skills_demonstrated=item.get("skills_demonstrated") or item.get("skills"),
-                structured_achievements=item.get("structured_achievements") or item.get("achievements"),
+                title=title,
+                exp_type=item.get("type", "work") or item.get("类型") or "work",
+                organization=item.get("organization") or item.get("company") or item.get("公司"),
+                start_date=self._parse_date(item.get("start_date") or item.get("开始日期")),
+                end_date=self._parse_date(item.get("end_date") or item.get("结束日期")),
+                raw_description=item.get("raw_description") or item.get("description") or item.get("描述") or "",
+                skills_demonstrated=item.get("skills_demonstrated") or item.get("skills") or item.get("技能"),
+                structured_achievements=item.get("structured_achievements") or item.get("achievements") or item.get("成就"),
                 metrics=metrics if metrics else None,
             )
-            if exp.title:
-                experiences.append(exp)
+            experiences.append(exp)
 
         logger.info("文件分析完成，提取经历: %d 条", len(experiences))
         return [self._to_draft(e) for e in experiences]

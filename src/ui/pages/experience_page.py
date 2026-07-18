@@ -452,17 +452,18 @@ class ExperiencePage(QWidget):
             return
         try:
             path = Path(filepath)
-            if filepath.endswith(".pdf") or filepath.endswith(".docx"):
+            suffix = path.suffix.lower()
+            if suffix in (".pdf", ".docx"):
                 # PDF/Word 切换到文件 Tab，只显示文件名和提示
                 tabs.setCurrentIndex(3)
                 file_edit.setPlainText(f"已选择文件: {path.name}\n点击「导入」按钮，LLM 将自动分析文件内容并提取经历。")
                 file_edit.setProperty("_file_path", filepath)
             else:
                 content = path.read_text(encoding="utf-8")
-                if filepath.endswith(".md"):
+                if suffix == ".md":
                     tabs.setCurrentIndex(0)
                     md_edit.setPlainText(content)
-                elif filepath.endswith(".json"):
+                elif suffix == ".json":
                     tabs.setCurrentIndex(2)
                     json_edit.setPlainText(content)
                 else:
@@ -544,6 +545,8 @@ class ExperiencePage(QWidget):
 
     def _do_file_import(self, dialog: Any, file_edit: Any) -> None:
         """文件导入：调用 LLM 分析并留痕"""
+        from src.services.import_parser import ImportParser, ImportParserError
+
         filepath = file_edit.property("_file_path")
         if not filepath:
             QMessageBox.warning(self, "未选择文件", "请先点击「从文件加载」选择要分析的文件。")
@@ -637,12 +640,23 @@ class ExperiencePage(QWidget):
                     f"LLM 分析未能提取有效经历。\n共分析出 {total} 条，但都未能成功导入。\n请检查文件内容或手动粘贴。"
                 )
 
+        def on_error(exc: Exception) -> None:
+            logger.error("文件分析失败: %s", exc)
+            # 根据异常类型给出更具体的提示
+            if isinstance(exc, ImportParserError):
+                detail = f"文件内容解析失败:\n{exc}\n\n建议: 检查 LLM 返回格式或重试。"
+            elif isinstance(exc, ImportError):
+                detail = f"缺少必要依赖:\n{exc}"
+            else:
+                detail = f"文件分析过程中出错:\n{exc}"
+            QMessageBox.critical(self, "文件分析失败", detail)
+
         start_async_task(
             self,
             self.status_label,
             f"LLM 正在分析 {path.name}...",
             analyze_and_import,
             on_success,
-            self._show_task_error("文件分析失败"),
+            on_error,
             [self.btn_import, self.btn_refresh, self.btn_save, self.btn_delete],
         )

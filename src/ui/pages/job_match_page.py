@@ -7,7 +7,6 @@ Sprint 6 GUI 扩展。
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -31,6 +30,7 @@ from PySide6.QtWidgets import (
 from src.services.job_matcher import JobMatcher
 from src.services.job_parser import JobParser
 from src.services.persona_engine import PersonaEngine
+from src.ui.async_tasks import start_async_task
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,7 @@ class JobMatchPage(QWidget):
         self._job_matcher = JobMatcher()
         self._personas: List[Any] = []
         self._current_job_id: Optional[str] = None
+        self._async_tasks: set[Any] = set()
         self._init_ui()
         self._load_personas()
 
@@ -82,6 +83,10 @@ class JobMatchPage(QWidget):
 
         layout.addLayout(top_bar)
 
+        self._status_label = QLabel()
+        self._status_label.setStyleSheet("color: #666;")
+        layout.addWidget(self._status_label)
+
         # 分隔线
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -103,9 +108,9 @@ class JobMatchPage(QWidget):
         # 行号到 job_id 映射
         self._job_id_map: List[str] = []
 
-        refresh_btn = QPushButton("刷新列表")
-        refresh_btn.clicked.connect(self._load_job_list)
-        left_layout.addWidget(refresh_btn)
+        self._refresh_btn = QPushButton("刷新列表")
+        self._refresh_btn.clicked.connect(self._load_job_list)
+        left_layout.addWidget(self._refresh_btn)
 
         splitter.addWidget(left_panel)
 
@@ -143,43 +148,55 @@ class JobMatchPage(QWidget):
 
         layout.addWidget(splitter, stretch=1)
 
-    def _run_async(self, coro: Any) -> Any:
-        """静态辅助：运行异步协程"""
-        try:
-            return asyncio.run(coro)
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            return loop.run_until_complete(coro)
-
     def _load_personas(self) -> None:
         """加载角色列表"""
-        try:
-            personas = self._run_async(self._persona_engine.list_by_user())
+        def on_success(personas: List[Any]) -> None:
             self._personas = personas
             self._persona_combo.clear()
             for p in personas:
                 self._persona_combo.addItem(p.name, p.id)
-        except Exception as e:
-            logger.error("加载角色失败: %s", e)
+
+        start_async_task(
+            self,
+            self._status_label,
+            "正在加载角色...",
+            self._persona_engine.list_by_user,
+            on_success,
+            self._show_task_error("加载角色失败"),
+            [self._persona_combo, self._parse_btn, self._refresh_btn],
+        )
 
     def _load_job_list(self) -> None:
         """加载 JD 列表"""
-        try:
-            jobs = self._run_async(self._job_parser.list_all(limit=50))
-            self._job_id_map = []
-            self._job_table.setRowCount(len(jobs))
-            for i, job in enumerate(jobs):
-                self._job_id_map.append(job.id)
-                self._job_table.setItem(i, 0, QTableWidgetItem(job.title or "未命名"))
-                self._job_table.setItem(i, 1, QTableWidgetItem(job.company or "-"))
-                self._job_table.setItem(i, 2, QTableWidgetItem(job.location or "-"))
-                btn = QPushButton("查看")
-                btn.clicked.connect(lambda checked, jid=job.id: self._on_view_job(jid))
-                self._job_table.setCellWidget(i, 3, btn)
-            self._job_table.resizeColumnsToContents()
-        except Exception as e:
-            logger.error("加载岗位列表失败: %s", e)
+        start_async_task(
+            self,
+            self._status_label,
+            "正在加载岗位列表...",
+            lambda: self._job_parser.list_all(limit=50),
+            self._populate_job_list,
+            self._show_task_error("加载岗位列表失败"),
+            [self._refresh_btn, self._parse_btn],
+        )
+
+    def _populate_job_list(self, jobs: List[Any]) -> None:
+        self._job_id_map = []
+        self._job_table.setRowCount(len(jobs))
+        for i, job in enumerate(jobs):
+            self._job_id_map.append(job.id)
+            self._job_table.setItem(i, 0, QTableWidgetItem(job.title or "未命名"))
+            self._job_table.setItem(i, 1, QTableWidgetItem(job.company or "-"))
+            self._job_table.setItem(i, 2, QTableWidgetItem(job.location or "-"))
+            btn = QPushButton("查看")
+            btn.clicked.connect(lambda checked, jid=job.id: self._on_view_job(jid))
+            self._job_table.setCellWidget(i, 3, btn)
+        self._job_table.resizeColumnsToContents()
+
+    def _show_task_error(self, title: str) -> Any:
+        def _handler(exc: Exception) -> None:
+            logger.error("%s: %s", title, exc)
+            QMessageBox.critical(self, "错误", f"{title}: {exc}")
+
+        return _handler
 
     def _on_parse_and_match(self) -> None:
         """粘贴 JD → 解析 → 匹配"""
@@ -193,29 +210,30 @@ class JobMatchPage(QWidget):
             QMessageBox.warning(self, "警告", "请先选择一个角色")
             return
 
-        self._parse_btn.setEnabled(False)
-        self._parse_btn.setText("解析中...")
-
-        try:
+        async def parse_match_and_reload() -> tuple[str, Any, List[Any]]:
             # 1. 解析 JD
-            job_desc = self._run_async(
-                self._job_parser.parse_and_save(raw_text, source="manual")
-            )
+            job_desc = await self._job_parser.parse_and_save(raw_text, source="manual")
             # 2. 匹配
-            match = self._run_async(
-                self._job_matcher.match(persona_id, job_desc.id)
-            )
-            # 3. 显示结果
-            self._current_job_id = job_desc.id
+            match = await self._job_matcher.match(persona_id, job_desc.id)
+            jobs = await self._job_parser.list_all(limit=50)
+            return job_desc.id, match, jobs
+
+        def on_success(result: tuple[str, Any, List[Any]]) -> None:
+            job_id, match, jobs = result
+            self._current_job_id = job_id
             self._display_match(match)
-            self._load_job_list()
+            self._populate_job_list(jobs)
             self._jd_input.clear()
-        except Exception as e:
-            logger.error("解析匹配失败: %s", e)
-            QMessageBox.critical(self, "错误", f"解析匹配失败: {e}")
-        finally:
-            self._parse_btn.setEnabled(True)
-            self._parse_btn.setText("解析并匹配")
+
+        start_async_task(
+            self,
+            self._status_label,
+            "正在解析并匹配...",
+            parse_match_and_reload,
+            on_success,
+            self._show_task_error("解析匹配失败"),
+            [self._parse_btn, self._refresh_btn, self._update_status_btn, self._persona_combo],
+        )
 
     def _on_job_selected(self, row: int, column: int) -> None:
         """点击列表中的岗位"""
@@ -230,11 +248,9 @@ class JobMatchPage(QWidget):
             QMessageBox.warning(self, "警告", "请先选择角色")
             return
 
-        try:
+        async def load_match() -> Any:
             # 检查是否已有匹配记录
-            matches = self._run_async(
-                self._job_matcher.list_matches(persona_id)
-            )
+            matches = await self._job_matcher.list_matches(persona_id)
             target_match = None
             for m in matches:
                 if m.job_desc_id == job_id:
@@ -243,15 +259,22 @@ class JobMatchPage(QWidget):
 
             if not target_match:
                 # 重新计算匹配
-                target_match = self._run_async(
-                    self._job_matcher.match(persona_id, job_id)
-                )
+                target_match = await self._job_matcher.match(persona_id, job_id)
+            return target_match
 
+        def on_success(target_match: Any) -> None:
             self._current_job_id = job_id
             self._display_match(target_match)
-        except Exception as e:
-            logger.error("查看匹配失败: %s", e)
-            QMessageBox.critical(self, "错误", f"查看匹配失败: {e}")
+
+        start_async_task(
+            self,
+            self._status_label,
+            "正在加载匹配结果...",
+            load_match,
+            on_success,
+            self._show_task_error("查看匹配失败"),
+            [self._parse_btn, self._refresh_btn, self._update_status_btn],
+        )
 
     def _display_match(self, match: Any) -> None:
         """显示匹配结果"""
@@ -293,11 +316,9 @@ class JobMatchPage(QWidget):
 
         new_status = self._status_combo.currentText()
 
-        try:
+        async def update_status() -> bool:
             # 找到对应的 match_id
-            matches = self._run_async(
-                self._job_matcher.list_matches(persona_id)
-            )
+            matches = await self._job_matcher.list_matches(persona_id)
             target_match = None
             for m in matches:
                 if m.job_desc_id == self._current_job_id:
@@ -305,12 +326,22 @@ class JobMatchPage(QWidget):
                     break
 
             if target_match:
-                self._run_async(
-                    self._job_matcher.update_tracking_status(target_match.id, new_status)
-                )
+                await self._job_matcher.update_tracking_status(target_match.id, new_status)
+                return True
+            return False
+
+        def on_success(updated: bool) -> None:
+            if updated:
                 QMessageBox.information(self, "成功", f"状态已更新为: {new_status}")
             else:
                 QMessageBox.warning(self, "警告", "未找到匹配记录")
-        except Exception as e:
-            logger.error("更新状态失败: %s", e)
-            QMessageBox.critical(self, "错误", f"更新状态失败: {e}")
+
+        start_async_task(
+            self,
+            self._status_label,
+            "正在保存状态...",
+            update_status,
+            on_success,
+            self._show_task_error("更新状态失败"),
+            [self._update_status_btn, self._parse_btn, self._refresh_btn],
+        )

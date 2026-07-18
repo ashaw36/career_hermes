@@ -10,9 +10,11 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
+from src.llm.prompts.file_analysis import build_file_analysis_prompt
+from src.llm.router import LLMRouter
 from src.services.experience_manager import ExperienceDraft
 
 logger = logging.getLogger(__name__)
@@ -30,10 +32,11 @@ class ParsedExperience:
     raw_description: str = ""
     skills_demonstrated: Optional[List[str]] = None
     structured_achievements: Optional[List[str]] = None
+    metrics: Optional[List[Dict[str, str]]] = None
 
 
 class ImportParserError(Exception):
-    """导入解析异常"""
+    pass
 
 
 class ImportParser:
@@ -45,7 +48,11 @@ class ImportParser:
         drafts = await parser.parse_markdown(md_text)
         drafts = await parser.parse_text(text)
         drafts = await parser.parse_json(json_text)
+        drafts = await parser.analyze_file_with_llm(file_content, file_type="项目总结")
     """
+
+    def __init__(self, llm_router: Optional[LLMRouter] = None) -> None:
+        self.llm = llm_router or LLMRouter()
 
     # 常见时间格式正则
     DATE_PATTERNS = [
@@ -368,5 +375,85 @@ class ImportParser:
                 "raw_description": parsed.raw_description,
                 "skills_demonstrated": parsed.skills_demonstrated,
                 "structured_achievements": parsed.structured_achievements,
+                "metrics": parsed.metrics,
             },
         )
+
+    async def analyze_file_with_llm(
+        self, file_content: str, file_type: str = "未知"
+    ) -> List[ExperienceDraft]:
+        """
+        使用 LLM 分析文件内容，自动提取结构化经历。
+
+        Args:
+            file_content: 文件全文内容
+            file_type: 文件类型描述
+
+        Returns:
+            ExperienceDraft 列表
+        """
+        prompt = build_file_analysis_prompt(file_content, file_type)
+        try:
+            response = await self.llm.chat(
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+            )
+        except Exception as e:
+            logger.error("文件分析 LLM 调用失败: %s", e)
+            raise ImportParserError(f"LLM 分析失败: {e}") from e
+
+        if not isinstance(response, str):
+            raise ImportParserError("LLM 返回类型异常")
+
+        # 提取 JSON 代码块
+        json_str = response.strip()
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0].strip()
+
+        try:
+            items = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.warning("文件分析 JSON 解析失败，尝试整行解析: %s", e)
+            # 尝试从响应中提取第一个 JSON 数组
+            match = re.search(r"\[.*\]", response.replace("\n", " "), re.DOTALL)
+            if not match:
+                raise ImportParserError(f"无法解析 LLM 返回: {e}")
+            try:
+                items = json.loads(match.group(0))
+            except json.JSONDecodeError as e2:
+                raise ImportParserError(f"无法解析 LLM 返回: {e2}")
+
+        if not isinstance(items, list):
+            items = [items]
+
+        experiences: List[ParsedExperience] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            # 处理 metrics 格式
+            metrics_raw = item.get("metrics") or []
+            metrics = None
+            if metrics_raw and isinstance(metrics_raw, list):
+                metrics = [
+                    {"metric": str(m.get("metric", "")), "value": str(m.get("value", "")), "unit": str(m.get("unit", ""))}
+                    for m in metrics_raw if isinstance(m, dict)
+                ]
+
+            exp = ParsedExperience(
+                title=item.get("title", ""),
+                exp_type=item.get("type", "work"),
+                organization=item.get("organization") or item.get("company"),
+                start_date=self._parse_date(item.get("start_date")),
+                end_date=self._parse_date(item.get("end_date")),
+                raw_description=item.get("raw_description") or item.get("description", ""),
+                skills_demonstrated=item.get("skills_demonstrated") or item.get("skills"),
+                structured_achievements=item.get("structured_achievements") or item.get("achievements"),
+                metrics=metrics if metrics else None,
+            )
+            if exp.title:
+                experiences.append(exp)
+
+        logger.info("文件分析完成，提取经历: %d 条", len(experiences))
+        return [self._to_draft(e) for e in experiences]

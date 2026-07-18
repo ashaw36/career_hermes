@@ -45,9 +45,10 @@ class ResumeBuilder:
 
         # 计算并获取按 Fit Score 排序的经历
         await self.persona_engine.calculate_fit_scores(self.persona_id)
+        min_score = getattr(self._persona, "min_relevance_score", None) or 0.15
         self._experiences = await self.persona_engine.get_weighted_experiences(
             self.persona_id,
-            min_score=0.0,
+            min_score=min_score,
             limit=self._persona.max_experiences,
         )
         return self
@@ -94,27 +95,45 @@ class ResumeBuilder:
         # 职业叙事
         narrative = persona.career_narrative or ""
 
-        # 经历列表
-        exp_list = []
+        # 经历列表（按类型分组）
+        work_exps = []
+        project_exps = []
+        education_exps = []
         for rew in self._experiences:
             exp = rew.experience
-            exp_list.append({
+            # 优先使用重述，fallback 到原始描述
+            description = rew.reframed_summary or exp.raw_description or ""
+            entry = {
                 "title": exp.title,
                 "organization": exp.organization,
                 "type": exp.type,
                 "period": self._format_period(exp.start_date, exp.end_date),
+                "description": description,
                 "achievements": exp.structured_achievements or [],
-                "skills": exp.skills_demonstrated or [],
+                "skills": rew.highlighted_skills or exp.skills_demonstrated or [],
                 "metrics": exp.metrics or [],
                 "relevance_score": rew.relevance_score,
-            })
+            }
+            if exp.type == "work":
+                work_exps.append(entry)
+            elif exp.type == "project":
+                project_exps.append(entry)
+            elif exp.type == "education":
+                education_exps.append(entry)
+            else:
+                work_exps.append(entry)
 
         return {
             "name": persona.name,
             "identity_statement": identity,
             "career_narrative": narrative,
             "tone_style": persona.tone_style,
-            "experiences": exp_list,
+            "capability_weights": persona.capability_weights or {},
+            "target_job_profiles": persona.target_job_profiles or [],
+            "experiences": work_exps + project_exps + education_exps,
+            "work_experiences": work_exps,
+            "project_experiences": project_exps,
+            "education_experiences": education_exps,
             "generated_at": date.today().isoformat(),
         }
 
@@ -152,8 +171,13 @@ class ResumeBuilder:
         return response.strip() if isinstance(response, str) else ""
 
     def export_to_file(self, content: str, filepath: str) -> Path:
-        """导出到文件"""
-        path = Path(filepath)
+        """导出到文件
+
+        安全校验：解析相对路径，防止路径穿越。
+        """
+        path = Path(filepath).resolve()
+        if ".." in path.parts:
+            raise ValueError("文件路径不安全，包含非法的 .. 组件")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         return path

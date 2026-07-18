@@ -59,7 +59,7 @@ class ConversationEngine:
 - `switch_persona`: 切换角色
 - `ask_clarification`: 需要用户确认或补充信息
 
-请返国严格JSON格式：
+请返回严格JSON格式：
 {
   "action_type": "...",
   "params": {...},

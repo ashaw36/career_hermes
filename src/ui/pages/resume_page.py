@@ -6,7 +6,6 @@ CareerCraft Agent — 简历预览页面
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -27,6 +26,7 @@ from src.config.settings import get_settings
 from src.models.entities import Persona
 from src.services.persona_engine import PersonaEngine
 from src.services.resume_builder import ResumeBuilder
+from src.ui.async_tasks import start_async_task
 
 
 class ResumePage(QWidget):
@@ -36,6 +36,7 @@ class ResumePage(QWidget):
         super().__init__(parent)
         self.persona_engine = PersonaEngine()
         self._personas: List[Persona] = []
+        self._async_tasks: set[Any] = set()
 
         self._init_ui()
         self._load_personas()
@@ -70,6 +71,10 @@ class ResumePage(QWidget):
         control_bar.addStretch()
         layout.addLayout(control_bar)
 
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("color: #666;")
+        layout.addWidget(self.status_label)
+
         # 预览区
         self.preview_edit = QTextEdit()
         self.preview_edit.setReadOnly(True)
@@ -102,22 +107,22 @@ class ResumePage(QWidget):
         self.btn_export.clicked.connect(self._on_export)
         self.btn_export_pdf.clicked.connect(self._on_export_pdf)
 
-    @staticmethod
-    def _run_async(coro: Any) -> Any:
-        """在独立事件循环中运行异步协程。"""
-        try:
-            return asyncio.run(coro)
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
-
     def _load_personas(self) -> None:
         """加载角色下拉列表。"""
         self.combo_persona.clear()
-        self._personas = self._run_async(self.persona_engine.list_by_user())
+        start_async_task(
+            self,
+            self.status_label,
+            "正在加载角色...",
+            self.persona_engine.list_by_user,
+            self._populate_personas,
+            self._show_task_error("加载角色失败"),
+            [self.combo_persona, self.btn_generate, self.btn_export, self.btn_export_pdf],
+        )
+
+    def _populate_personas(self, personas: List[Persona]) -> None:
+        self.combo_persona.clear()
+        self._personas = personas
         if not self._personas:
             self.combo_persona.addItem("暂无角色，请先创建")
             self.combo_persona.setEnabled(False)
@@ -127,6 +132,12 @@ class ResumePage(QWidget):
         self.btn_generate.setEnabled(True)
         for p in self._personas:
             self.combo_persona.addItem(p.name, p.id)
+
+    def _show_task_error(self, title: str) -> Any:
+        def _handler(exc: Exception) -> None:
+            QMessageBox.critical(self, title, str(exc))
+
+        return _handler
 
     def _on_generate(self) -> None:
         """生成简历并预览。"""
@@ -141,10 +152,20 @@ class ResumePage(QWidget):
             return
 
         try:
-            builder = ResumeBuilder(persona_id=persona_id)
-            self._run_async(builder.prepare())
-            md_content = self._run_async(builder.render(template_name=template_name))
-            self.preview_edit.setPlainText(md_content)
+            async def generate() -> str:
+                builder = ResumeBuilder(persona_id=persona_id)
+                await builder.prepare()
+                return await builder.render(template_name=template_name)
+
+            start_async_task(
+                self,
+                self.status_label,
+                "正在生成简历...",
+                generate,
+                lambda md_content: self.preview_edit.setPlainText(md_content),
+                self._show_task_error("生成失败"),
+                [self.btn_generate, self.btn_export, self.btn_export_pdf, self.combo_persona, self.combo_template],
+            )
         except Exception as exc:
             QMessageBox.critical(self, "生成失败", f"生成简历时出错：\n{exc}")
 
@@ -167,13 +188,21 @@ class ResumePage(QWidget):
         if not filepath:
             return
 
-        try:
+        async def write_markdown() -> str:
             path = Path(filepath)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-            QMessageBox.information(self, "成功", f"已导出到：\n{filepath}")
-        except Exception as exc:
-            QMessageBox.critical(self, "导出失败", f"写入文件失败：\n{exc}")
+            return filepath
+
+        start_async_task(
+            self,
+            self.status_label,
+            "正在导出 Markdown...",
+            write_markdown,
+            lambda saved_path: QMessageBox.information(self, "成功", f"已导出到：\n{saved_path}"),
+            self._show_task_error("导出失败"),
+            [self.btn_export, self.btn_export_pdf, self.btn_generate],
+        )
 
     def _on_export_pdf(self) -> None:
         """导出 PDF 文件。"""
@@ -204,25 +233,32 @@ class ResumePage(QWidget):
             if not filepath:
                 return
 
-            # 加载角色和经历
-            persona = self._run_async(
-                self.persona_engine.get_by_id(persona_id)
-            )
-            if not persona:
-                QMessageBox.warning(self, "错误", "无法加载角色信息。")
-                return
+            async def export_pdf() -> str:
+                # 1. 先用 ResumeBuilder 筛选角色适配的经历
+                builder = ResumeBuilder(persona_id=persona_id)
+                await builder.prepare()
+                # 从 builder 中提取 Experience 对象（已按 Fit Score 排序和过滤）
+                filtered_experiences = [rew.experience for rew in builder._experiences]
 
-            from src.services.experience_manager import ExperienceManager
-            exp_mgr = ExperienceManager()
-            experiences = self._run_async(
-                exp_mgr.list_by_user(status_filter="confirmed")
-            )
+                # 2. 加载角色
+                persona = await self.persona_engine.get_by_id(persona_id)
+                if not persona:
+                    raise RuntimeError("无法加载角色信息。")
 
-            exporter = PDFExporter()
-            self._run_async(
-                exporter.save_resume(persona, experiences, Path(filepath))
+                # 3. 导出 PDF
+                exporter = PDFExporter()
+                await exporter.save_resume(persona, filtered_experiences, Path(filepath))
+                return filepath
+
+            start_async_task(
+                self,
+                self.status_label,
+                "正在导出 PDF...",
+                export_pdf,
+                lambda saved_path: QMessageBox.information(self, "成功", f"PDF 已导出到：\n{saved_path}"),
+                self._show_task_error("导出失败"),
+                [self.btn_export_pdf, self.btn_export, self.btn_generate],
             )
-            QMessageBox.information(self, "成功", f"PDF 已导出到：\n{filepath}")
         except PDFExporterError as exc:
             QMessageBox.critical(self, "导出失败", str(exc))
         except Exception as exc:

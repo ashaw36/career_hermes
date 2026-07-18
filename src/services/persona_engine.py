@@ -28,6 +28,7 @@ class PersonaEngine:
         tone_style: str = "business_insight",
         capability_weights: Optional[Dict[str, float]] = None,
         target_job_profiles: Optional[List[str]] = None,
+        max_experiences: int = 5,
         user_id: str = "default",
     ) -> Persona:
         """创建角色档案"""
@@ -39,6 +40,7 @@ class PersonaEngine:
             tone_style=tone_style,
             capability_weights=capability_weights or {},
             target_job_profiles=target_job_profiles or [],
+            max_experiences=max_experiences,
         )
         async with AsyncSessionLocal() as session:
             session.add(persona)

@@ -32,7 +32,8 @@ class TestSkillMatch:
         matched, missing, score = matcher._calculate_skill_match(persona, job)
         assert matched == ["Python", "Docker"]
         assert missing == []
-        assert score == 60.0
+        # 基础分 40 + 默认等级加成 5 = 45
+        assert abs(score - 45.0) < 0.1
 
     def test_partial_match(self, matcher: JobMatcher) -> None:
         persona = ["Python", "Docker"]
@@ -40,7 +41,8 @@ class TestSkillMatch:
         matched, missing, score = matcher._calculate_skill_match(persona, job)
         assert matched == ["Python", "Docker"]
         assert missing == ["Kubernetes"]
-        assert score == 40.0
+        # 基础分 (2/3)*40 ≈ 26.67 + 等级加成 5 ≈ 31.67
+        assert abs(score - 31.67) < 0.1
 
     def test_no_match(self, matcher: JobMatcher) -> None:
         persona = ["Java"]
@@ -54,14 +56,14 @@ class TestSkillMatch:
         matched, missing, score = matcher._calculate_skill_match(["Python"], [])
         assert matched == []
         assert missing == []
-        assert score == 30.0
+        assert score == 25.0
 
     def test_case_insensitive(self, matcher: JobMatcher) -> None:
         persona = ["python", "docker"]
         job = ["Python", "DOCKER"]
         matched, missing, score = matcher._calculate_skill_match(persona, job)
         assert len(matched) == 2
-        assert score == 60.0
+        assert abs(score - 45.0) < 0.1
 
     def test_substring_match(self, matcher: JobMatcher) -> None:
         persona = ["kubernetes"]

@@ -252,3 +252,20 @@ class LearningPath(Base):
 
     def __repr__(self) -> str:
         return f"<LearningPath(id={self.id}, target={self.target_gap})>"
+
+
+class UploadedFile(Base):
+    __tablename__ = "uploaded_files"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, default="default")
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    content_preview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    extracted_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="processed"
+    )  # processed, failed
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

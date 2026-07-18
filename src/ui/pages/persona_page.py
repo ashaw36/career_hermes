@@ -6,7 +6,7 @@ CareerCraft Agent — 角色配置页面
 
 from __future__ import annotations
 
-import asyncio
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import Qt
@@ -32,6 +32,9 @@ from PySide6.QtWidgets import (
 
 from src.models.entities import Persona
 from src.services.persona_engine import PersonaEngine
+from src.ui.async_tasks import start_async_task
+
+logger = logging.getLogger(__name__)
 
 
 class CapabilityWeightItem(QWidget):
@@ -78,6 +81,7 @@ class PersonaPage(QWidget):
         self._current_persona_id: Optional[str] = None
         self._personas: List[Persona] = []
         self._weight_items: List[CapabilityWeightItem] = []
+        self._async_tasks: set[Any] = set()
 
         self._init_ui()
         self._load_data()
@@ -109,6 +113,10 @@ class PersonaPage(QWidget):
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
         left_layout.addLayout(toolbar)
+
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("color: #666;")
+        left_layout.addWidget(self.status_label)
 
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -185,40 +193,47 @@ class PersonaPage(QWidget):
         self.btn_delete.clicked.connect(self._on_delete)
         self.btn_refresh.clicked.connect(self._load_data)
         self.btn_save.clicked.connect(self._on_save)
-        self.btn_add_weight.clicked.connect(self._add_weight_item)
+        self.btn_add_weight.clicked.connect(lambda _checked=False: self._add_weight_item())
         self.list_widget.currentItemChanged.connect(self._on_item_changed)
-
-    @staticmethod
-    def _run_async(coro: Any) -> Any:
-        """在独立事件循环中运行异步协程。"""
-        try:
-            return asyncio.run(coro)
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
 
     def _load_data(self) -> None:
         """加载角色列表。"""
         self.list_widget.clear()
-        self._personas = self._run_async(self.engine.list_by_user())
+        start_async_task(
+            self,
+            self.status_label,
+            "正在加载角色...",
+            self.engine.list_by_user,
+            lambda personas: self._populate_personas(personas),
+            self._show_task_error("加载失败"),
+            [self.btn_refresh, self.btn_save, self.btn_delete],
+        )
+
+    def _populate_personas(
+        self, personas: List[Persona], selected_id: Optional[str] = None
+    ) -> None:
+        self.list_widget.clear()
+        self._personas = personas
+        selected_item: Optional[QListWidgetItem] = None
         for p in self._personas:
             item = QListWidgetItem(p.name)
             item.setData(Qt.ItemDataRole.UserRole, p.id)
             self.list_widget.addItem(item)
-        self._clear_form()
-
-    def _on_item_changed(self, current: Optional[QListWidgetItem], _previous: Optional[QListWidgetItem]) -> None:
-        """列表项切换时加载详情。"""
-        if current is None:
+            if selected_id and p.id == selected_id:
+                selected_item = item
+        if selected_item:
+            self.list_widget.setCurrentItem(selected_item)
+        else:
             self._clear_form()
-            return
-        persona_id = current.data(Qt.ItemDataRole.UserRole)
-        persona = self._run_async(self.engine.get_by_id(persona_id))
-        if persona is None:
-            return
+
+    def _show_task_error(self, title: str) -> Any:
+        def _handler(exc: Exception) -> None:
+            logger.error("%s: %s", title, exc)
+            QMessageBox.critical(self, title, str(exc))
+
+        return _handler
+
+    def _set_form(self, persona: Persona) -> None:
         self._current_persona_id = persona.id
         self.edit_name.setText(persona.name)
         self.edit_identity.setPlainText(persona.identity_statement or "")
@@ -228,11 +243,34 @@ class PersonaPage(QWidget):
         self.edit_targets.setText(targets)
         self.spin_max_exp.setValue(persona.max_experiences)
 
-        # 加载能力权重
         self._clear_weights()
         weights = persona.capability_weights or {}
         for skill, weight in weights.items():
             self._add_weight_item(skill, int(weight * 100))
+
+    def _on_item_changed(self, current: Optional[QListWidgetItem], _previous: Optional[QListWidgetItem]) -> None:
+        """列表项切换时加载详情。"""
+        if current is None:
+            self._clear_form()
+            return
+        persona_id = current.data(Qt.ItemDataRole.UserRole)
+
+        def on_success(persona: Optional[Persona]) -> None:
+            current_item = self.list_widget.currentItem()
+            if current_item is None or current_item.data(Qt.ItemDataRole.UserRole) != persona_id:
+                return
+            if persona is not None:
+                self._set_form(persona)
+
+        start_async_task(
+            self,
+            self.status_label,
+            "正在加载角色详情...",
+            lambda: self.engine.get_by_id(persona_id),
+            on_success,
+            self._show_task_error("加载详情失败"),
+            [self.list_widget],
+        )
 
     def _clear_form(self) -> None:
         """清空表单。"""
@@ -286,12 +324,28 @@ class PersonaPage(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        ok = self._run_async(self.engine.delete(persona_id))
-        if ok:
-            self._load_data()
-            QMessageBox.information(self, "成功", "角色已删除。")
-        else:
-            QMessageBox.warning(self, "失败", "删除角色失败。")
+        async def delete_and_reload() -> tuple[bool, List[Persona]]:
+            ok = await self.engine.delete(persona_id)
+            personas = await self.engine.list_by_user()
+            return ok, personas
+
+        def on_success(result: tuple[bool, List[Persona]]) -> None:
+            ok, personas = result
+            if ok:
+                self._populate_personas(personas)
+                QMessageBox.information(self, "成功", "角色已删除。")
+            else:
+                QMessageBox.warning(self, "失败", "删除角色失败。")
+
+        start_async_task(
+            self,
+            self.status_label,
+            "正在删除角色...",
+            delete_and_reload,
+            on_success,
+            self._show_task_error("删除失败"),
+            [self.btn_delete, self.btn_save, self.btn_refresh],
+        )
 
     def _on_save(self) -> None:
         """保存角色表单。"""
@@ -323,20 +377,37 @@ class PersonaPage(QWidget):
             "max_experiences": max_exp,
         }
 
-        if self._current_persona_id:
-            persona = self._run_async(self.engine.update(self._current_persona_id, **data))
-            if persona:
-                QMessageBox.information(self, "成功", "角色已更新。")
-            else:
-                QMessageBox.warning(self, "失败", "更新角色失败。")
-        else:
-            persona = self._run_async(self.engine.create(**data))
-            self._current_persona_id = persona.id
-            QMessageBox.information(self, "成功", "角色已创建。")
+        try:
+            async def save_and_reload() -> tuple[str, str, List[Persona]]:
+                action = "updated"
+                if self._current_persona_id:
+                    persona = await self.engine.update(self._current_persona_id, **data)
+                    if not persona:
+                        raise RuntimeError("更新角色失败。")
+                else:
+                    persona = await self.engine.create(**data)
+                    action = "created"
+                personas = await self.engine.list_by_user()
+                return action, persona.id, personas
 
-        self._load_data()
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) == self._current_persona_id:
-                self.list_widget.setCurrentItem(item)
-                break
+            def on_success(result: tuple[str, str, List[Persona]]) -> None:
+                action, persona_id, personas = result
+                self._current_persona_id = persona_id
+                self._populate_personas(personas, selected_id=persona_id)
+                if action == "updated":
+                    QMessageBox.information(self, "成功", "角色已更新。")
+                else:
+                    QMessageBox.information(self, "成功", "角色已创建。")
+
+            start_async_task(
+                self,
+                self.status_label,
+                "正在保存角色...",
+                save_and_reload,
+                on_success,
+                self._show_task_error("保存失败"),
+                [self.btn_save, self.btn_delete, self.btn_refresh],
+            )
+        except Exception as e:
+            logger.error("保存角色失败: %s", e)
+            QMessageBox.critical(self, "保存失败", f"保存角色时出现错误：\n{e}")

@@ -207,11 +207,17 @@ class PDFExporter:
     ) -> Path:
         """
         导出并保存到文件。
+
+        安全校验：解析相对路径，防止路径穿越。
         """
+        resolved = output_path.resolve()
+        if ".." in resolved.parts:
+            raise ValueError("文件路径不安全，包含非法的 .. 组件")
         pdf_bytes = await self.export_resume(persona, experiences)
-        output_path.write_bytes(pdf_bytes)
-        logger.info("简历 PDF 已保存: %s", output_path)
-        return output_path
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_bytes(pdf_bytes)
+        logger.info("简历 PDF 已保存: %s", resolved)
+        return resolved
 
     @staticmethod
     def _format_period(start: Optional[date], end: Optional[date]) -> str:

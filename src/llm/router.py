@@ -346,7 +346,7 @@ class LLMRouter:
             if "学习" in user_content or "资源" in user_content or "learning" in user_content.lower():
                 return '[{"type": "course", "title": "Mock 学习资源", "source": "Mock", "estimated_hours": 10, "priority": 1}]'
             # 经历提取 / 岗位解析 需要 dict
-            return '{"title": "Mock 标题", "organization": "MockCorp", "start_date": "2024-01-01", "end_date": "2024-12-31", "type": "work", "structured_achievements": ["成果1"], "skills_demonstrated": ["Python", "SQL"], "metrics": {"效率": "+40%"}}'
+            return '{"title": "Mock 标题", "organization": "MockCorp", "start_date": "2024-01-01", "end_date": "2024-12-31", "type": "work", "structured_achievements": ["成果1"], "skills_demonstrated": ["Python", "SQL"], "metrics": [{"metric": "效率", "value": "+40%"}]}'
 
         if "岗位" in user_content or "jd" in user_content.lower() or "job" in user_content.lower():
             return '{"title": "Mock 岗位", "company": "MockCorp", "parsed_skills": ["Python", "SQL"], "location": "北京"}'

@@ -6,9 +6,9 @@ CareerCraft Agent — 经历管理页面
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import date
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import Qt
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QDateEdit,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -33,6 +34,7 @@ from PySide6.QtWidgets import (
 
 from src.models.entities import Experience
 from src.services.experience_manager import ExperienceManager
+from src.ui.async_tasks import start_async_task
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ class ExperiencePage(QWidget):
         self.manager = ExperienceManager()
         self._current_exp_id: Optional[str] = None
         self._experiences: List[Experience] = []
+        self._async_tasks: set[Any] = set()
 
         self._init_ui()
         self._load_data()
@@ -83,6 +86,10 @@ class ExperiencePage(QWidget):
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
         left_layout.addLayout(toolbar)
+
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("color: #666;")
+        left_layout.addWidget(self.status_label)
 
         # 经历列表
         self.list_widget = QListWidget()
@@ -163,29 +170,55 @@ class ExperiencePage(QWidget):
         self.btn_save.clicked.connect(self._on_save)
         self.list_widget.currentItemChanged.connect(self._on_item_changed)
 
-    @staticmethod
-    def _run_async(coro: Any) -> Any:
-        """在独立事件循环中运行异步协程。"""
-        try:
-            return asyncio.run(coro)
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
-
     def _load_data(self) -> None:
         """加载经历列表。"""
         self.list_widget.clear()
-        self._experiences = self._run_async(
-            self.manager.list_by_user(status_filter="confirmed")
+        start_async_task(
+            self,
+            self.status_label,
+            "正在加载经历...",
+            lambda: self.manager.list_by_user(status_filter="confirmed"),
+            lambda exps: self._populate_experiences(exps),
+            self._show_task_error("加载失败"),
+            [self.btn_refresh, self.btn_save, self.btn_delete, self.btn_import],
         )
+
+    def _populate_experiences(
+        self, experiences: List[Experience], selected_id: Optional[str] = None
+    ) -> None:
+        self.list_widget.clear()
+        self._experiences = experiences
+        selected_item: Optional[QListWidgetItem] = None
         for exp in self._experiences:
             item = QListWidgetItem(self._format_list_text(exp))
             item.setData(Qt.ItemDataRole.UserRole, exp.id)
             self.list_widget.addItem(item)
-        self._clear_form()
+            if selected_id and exp.id == selected_id:
+                selected_item = item
+        if selected_item:
+            self.list_widget.setCurrentItem(selected_item)
+        else:
+            self._clear_form()
+
+    def _show_task_error(self, title: str) -> Any:
+        def _handler(exc: Exception) -> None:
+            logger.error("%s: %s", title, exc)
+            QMessageBox.critical(self, title, str(exc))
+
+        return _handler
+
+    def _set_form(self, exp: Experience) -> None:
+        self._current_exp_id = exp.id
+        self.edit_title.setText(exp.title)
+        self.edit_org.setText(exp.organization or "")
+        self.combo_type.setCurrentText(exp.type)
+        self.date_start.setDate(exp.start_date or date.today())
+        self.date_end.setDate(exp.end_date or date.today())
+        self.edit_desc.setPlainText(exp.raw_description)
+        skills = ", ".join(exp.skills_demonstrated or [])
+        self.edit_skills.setText(skills)
+        achievements = "\n".join(exp.structured_achievements or [])
+        self.edit_achievements.setPlainText(achievements)
 
     def _format_list_text(self, exp: Experience) -> str:
         """格式化列表项文本。"""
@@ -206,20 +239,23 @@ class ExperiencePage(QWidget):
             self._clear_form()
             return
         exp_id = current.data(Qt.ItemDataRole.UserRole)
-        exp = self._run_async(self.manager.get_by_id(exp_id))
-        if exp is None:
-            return
-        self._current_exp_id = exp.id
-        self.edit_title.setText(exp.title)
-        self.edit_org.setText(exp.organization or "")
-        self.combo_type.setCurrentText(exp.type)
-        self.date_start.setDate(exp.start_date or date.today())
-        self.date_end.setDate(exp.end_date or date.today())
-        self.edit_desc.setPlainText(exp.raw_description)
-        skills = ", ".join(exp.skills_demonstrated or [])
-        self.edit_skills.setText(skills)
-        achievements = "\n".join(exp.structured_achievements or [])
-        self.edit_achievements.setPlainText(achievements)
+
+        def on_success(exp: Optional[Experience]) -> None:
+            current_item = self.list_widget.currentItem()
+            if current_item is None or current_item.data(Qt.ItemDataRole.UserRole) != exp_id:
+                return
+            if exp is not None:
+                self._set_form(exp)
+
+        start_async_task(
+            self,
+            self.status_label,
+            "正在加载经历详情...",
+            lambda: self.manager.get_by_id(exp_id),
+            on_success,
+            self._show_task_error("加载详情失败"),
+            [self.list_widget],
+        )
 
     def _clear_form(self) -> None:
         """清空表单。"""
@@ -254,12 +290,28 @@ class ExperiencePage(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        ok = self._run_async(self.manager.delete(exp_id))
-        if ok:
-            self._load_data()
-            QMessageBox.information(self, "成功", "经历已删除。")
-        else:
-            QMessageBox.warning(self, "失败", "删除经历失败，请检查日志。")
+        async def delete_and_reload() -> tuple[bool, List[Experience]]:
+            ok = await self.manager.delete(exp_id)
+            exps = await self.manager.list_by_user(status_filter="confirmed")
+            return ok, exps
+
+        def on_success(result: tuple[bool, List[Experience]]) -> None:
+            ok, exps = result
+            if ok:
+                self._populate_experiences(exps)
+                QMessageBox.information(self, "成功", "经历已删除。")
+            else:
+                QMessageBox.warning(self, "失败", "删除经历失败，请检查日志。")
+
+        start_async_task(
+            self,
+            self.status_label,
+            "正在删除经历...",
+            delete_and_reload,
+            on_success,
+            self._show_task_error("删除失败"),
+            [self.btn_delete, self.btn_save, self.btn_refresh, self.btn_import],
+        )
 
     def _on_save(self) -> None:
         """保存表单数据。"""
@@ -287,38 +339,54 @@ class ExperiencePage(QWidget):
             "structured_achievements": achievements or None,
         }
 
-        if self._current_exp_id:
-            exp = self._run_async(self.manager.update(self._current_exp_id, **data))
-            if exp:
-                QMessageBox.information(self, "成功", "经历已更新。")
-            else:
-                QMessageBox.warning(self, "失败", "更新经历失败。")
-        else:
-            # 新增经历：先创建草稿，然后保存
-            from src.services.experience_manager import ExperienceDraft
-            draft = ExperienceDraft(
-                raw_text=desc,
-                extracted={
-                    "title": title,
-                    "organization": org,
-                    "type": exp_type,
-                    "start_date": start_date.isoformat() if start_date else None,
-                    "end_date": end_date.isoformat() if end_date else None,
-                    "structured_achievements": achievements or None,
-                    "skills_demonstrated": skills or None,
-                },
-            )
-            exp = self._run_async(self.manager.confirm_and_save(draft))
-            self._current_exp_id = exp.id
-            QMessageBox.information(self, "成功", "经历已创建。")
+        try:
+            async def save_and_reload() -> tuple[str, str, List[Experience]]:
+                action = "updated"
+                if self._current_exp_id:
+                    exp = await self.manager.update(self._current_exp_id, **data)
+                    if not exp:
+                        raise RuntimeError("更新经历失败。")
+                else:
+                    # 新增经历：先创建草稿，然后保存
+                    from src.services.experience_manager import ExperienceDraft
+                    draft = ExperienceDraft(
+                        raw_text=desc,
+                        extracted={
+                            "title": title,
+                            "organization": org,
+                            "type": exp_type,
+                            "start_date": start_date.isoformat() if start_date else None,
+                            "end_date": end_date.isoformat() if end_date else None,
+                            "structured_achievements": achievements or None,
+                            "skills_demonstrated": skills or None,
+                        },
+                    )
+                    exp = await self.manager.confirm_and_save(draft)
+                    action = "created"
+                exps = await self.manager.list_by_user(status_filter="confirmed")
+                return action, exp.id, exps
 
-        self._load_data()
-        # 回选当前项
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) == self._current_exp_id:
-                self.list_widget.setCurrentItem(item)
-                break
+            def on_success(result: tuple[str, str, List[Experience]]) -> None:
+                action, exp_id, exps = result
+                self._current_exp_id = exp_id
+                self._populate_experiences(exps, selected_id=exp_id)
+                if action == "updated":
+                    QMessageBox.information(self, "成功", "经历已更新。")
+                else:
+                    QMessageBox.information(self, "成功", "经历已创建。")
+
+            start_async_task(
+                self,
+                self.status_label,
+                "正在保存经历...",
+                save_and_reload,
+                on_success,
+                self._show_task_error("保存失败"),
+                [self.btn_save, self.btn_delete, self.btn_refresh, self.btn_import],
+            )
+        except Exception as e:
+            logger.error("保存经历失败: %s", e)
+            QMessageBox.critical(self, "保存失败", f"保存经历时出现错误：\n{e}")
 
     def _on_import(self) -> None:
         """打开批量导入对话框。"""
@@ -346,9 +414,13 @@ class ExperiencePage(QWidget):
         text_edit.setPlaceholderText("粘贴纯文本格式经历...")
         json_edit = QTextEdit()
         json_edit.setPlaceholderText('粘贴 JSON 格式经历...\n例: [{"title": "...", "type": "work"}]')
+        file_edit = QTextEdit()
+        file_edit.setPlaceholderText("选择文件后，LLM 将自动分析文件内容并提取结构化经历...")
+        file_edit.setReadOnly(True)
         tabs.addTab(md_edit, "Markdown")
         tabs.addTab(text_edit, "纯文本")
         tabs.addTab(json_edit, "JSON")
+        tabs.addTab(file_edit, "文件")
         layout.addWidget(tabs)
 
         # 底部按钮
@@ -356,12 +428,12 @@ class ExperiencePage(QWidget):
         btn_bar.addStretch()
 
         btn_load_file = QPushButton("从文件加载")
-        btn_load_file.clicked.connect(lambda: self._load_import_file(tabs, md_edit, text_edit, json_edit))
+        btn_load_file.clicked.connect(lambda: self._load_import_file(tabs, md_edit, text_edit, json_edit, file_edit))
         btn_bar.addWidget(btn_load_file)
 
         btn_import = QPushButton("导入")
         btn_import.setStyleSheet("QPushButton { background-color: #27ae60; color: white; padding: 6px 24px; }")
-        btn_import.clicked.connect(lambda: self._do_import(dialog, tabs, md_edit, text_edit, json_edit))
+        btn_import.clicked.connect(lambda: self._do_import(dialog, tabs, md_edit, text_edit, json_edit, file_edit))
         btn_bar.addWidget(btn_import)
 
         btn_cancel = QPushButton("取消")
@@ -371,33 +443,44 @@ class ExperiencePage(QWidget):
 
         dialog.exec()
 
-    def _load_import_file(self, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any) -> None:
+    def _load_import_file(self, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any, file_edit: Any) -> None:
         """从文件加载导入内容"""
         filepath, _filter = QFileDialog.getOpenFileName(
-            self, "选择经历文件", "", "Markdown (*.md);;Text (*.txt);;JSON (*.json);;All Files (*.*)"
+            self, "选择经历文件", "", "All Supported (*.md *.txt *.json *.pdf *.docx);;Markdown (*.md);;Text (*.txt);;JSON (*.json);;PDF (*.pdf);;Word (*.docx);;All Files (*.*)"
         )
         if not filepath:
             return
         try:
-            content = Path(filepath).read_text(encoding="utf-8")
-            if filepath.endswith(".md"):
-                tabs.setCurrentIndex(0)
-                md_edit.setPlainText(content)
-            elif filepath.endswith(".json"):
-                tabs.setCurrentIndex(2)
-                json_edit.setPlainText(content)
+            path = Path(filepath)
+            if filepath.endswith(".pdf") or filepath.endswith(".docx"):
+                # PDF/Word 切换到文件 Tab，只显示文件名和提示
+                tabs.setCurrentIndex(3)
+                file_edit.setPlainText(f"已选择文件: {path.name}\n点击「导入」按钮，LLM 将自动分析文件内容并提取经历。")
+                file_edit.setProperty("_file_path", filepath)
             else:
-                tabs.setCurrentIndex(1)
-                text_edit.setPlainText(content)
+                content = path.read_text(encoding="utf-8")
+                if filepath.endswith(".md"):
+                    tabs.setCurrentIndex(0)
+                    md_edit.setPlainText(content)
+                elif filepath.endswith(".json"):
+                    tabs.setCurrentIndex(2)
+                    json_edit.setPlainText(content)
+                else:
+                    tabs.setCurrentIndex(1)
+                    text_edit.setPlainText(content)
         except Exception as exc:
             QMessageBox.critical(self, "读取失败", f"无法读取文件:\n{exc}")
 
-    def _do_import(self, dialog: Any, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any) -> None:
+    def _do_import(self, dialog: Any, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any, file_edit: Any) -> None:
         """执行导入"""
         from src.services.import_parser import ImportParser, ImportParserError
 
         idx = tabs.currentIndex()
-        if idx == 0:
+        if idx == 3:
+            # 文件模式：调用 LLM 分析
+            self._do_file_import(dialog, file_edit)
+            return
+        elif idx == 0:
             text = md_edit.toPlainText().strip()
             if not text:
                 QMessageBox.warning(self, "空内容", "请先粘贴 Markdown 内容。")
@@ -417,27 +500,144 @@ class ExperiencePage(QWidget):
             parser_method = ImportParser().parse_text
 
         try:
-            drafts = self._run_async(parser_method(text))
-            if not drafts:
-                QMessageBox.information(self, "无数据", "未能解析出有效的经历，请检查格式。")
-                return
+            async def import_and_reload() -> tuple[int, int, List[Experience]]:
+                drafts = await parser_method(text)
+                if not drafts:
+                    return 0, 0, await self.manager.list_by_user(status_filter="confirmed")
 
-            # 一个一个保存
-            success = 0
-            for draft in drafts:
-                try:
-                    self._run_async(self.manager.confirm_and_save(draft))
-                    success += 1
-                except Exception as e:
-                    logger.warning("导入单条经历失败: %s", e)
+                success = 0
+                for draft in drafts:
+                    try:
+                        await self.manager.confirm_and_save(draft)
+                        success += 1
+                    except Exception as e:
+                        logger.warning("导入单条经历失败: %s", e)
 
-            QMessageBox.information(
-                self, "导入完成",
-                f"成功导入 {success} / {len(drafts)} 条经历。"
+                exps = await self.manager.list_by_user(status_filter="confirmed")
+                return success, len(drafts), exps
+
+            def on_success(result: tuple[int, int, List[Experience]]) -> None:
+                success, total, exps = result
+                if total == 0:
+                    QMessageBox.information(self, "无数据", "未能解析出有效的经历，请检查格式。")
+                    return
+                self._populate_experiences(exps)
+                QMessageBox.information(
+                    self, "导入完成",
+                    f"成功导入 {success} / {total} 条经历。"
+                )
+                dialog.accept()
+
+            start_async_task(
+                self,
+                self.status_label,
+                "正在导入经历...",
+                import_and_reload,
+                on_success,
+                self._show_task_error("导入失败"),
+                [self.btn_import, self.btn_refresh, self.btn_save, self.btn_delete],
             )
-            self._load_data()
-            dialog.accept()
         except ImportParserError as exc:
             QMessageBox.critical(self, "解析失败", f"格式解析失败:\n{exc}")
         except Exception as exc:
             QMessageBox.critical(self, "导入失败", f"导入过程中出错:\n{exc}")
+
+    def _do_file_import(self, dialog: Any, file_edit: Any) -> None:
+        """文件导入：调用 LLM 分析并留痕"""
+        filepath = file_edit.property("_file_path")
+        if not filepath:
+            QMessageBox.warning(self, "未选择文件", "请先点击「从文件加载」选择要分析的文件。")
+            return
+
+        path = Path(filepath)
+        if not path.exists():
+            QMessageBox.critical(self, "文件不存在", f"文件不存在: {filepath}")
+            return
+
+        # 读取文件内容
+        try:
+            if path.suffix.lower() == ".pdf":
+                try:
+                    import pymupdf
+                    doc = pymupdf.open(filepath)
+                    content = "\n".join(page.get_text() for page in doc)
+                except ImportError:
+                    QMessageBox.warning(self, "缺少依赖", "PDF 解析需要 PyMuPDF。\n请运行: pip install pymupdf")
+                    return
+            elif path.suffix.lower() == ".docx":
+                try:
+                    import docx
+                    d = docx.Document(filepath)
+                    content = "\n".join(p.text for p in d.paragraphs if p.text.strip())
+                except ImportError:
+                    QMessageBox.warning(self, "缺少依赖", "Word 解析需要 python-docx。\n请运行: pip install python-docx")
+                    return
+            else:
+                content = path.read_text(encoding="utf-8")
+        except Exception as exc:
+            QMessageBox.critical(self, "读取失败", f"无法读取文件:\n{exc}")
+            return
+
+        file_type_map = {
+            ".md": "Markdown",
+            ".txt": "纯文本",
+            ".json": "JSON",
+            ".pdf": "PDF",
+            ".docx": "Word",
+        }
+        file_type = file_type_map.get(path.suffix.lower(), "未知")
+
+        async def analyze_and_import() -> tuple[int, int, List[Experience]]:
+            parser = ImportParser()
+            drafts = await parser.analyze_file_with_llm(content, file_type=f"{file_type}文件")
+
+            success = 0
+            for draft in drafts:
+                try:
+                    await self.manager.confirm_and_save(draft)
+                    success += 1
+                except Exception as e:
+                    logger.warning("LLM 导入单条经历失败: %s", e)
+
+            exps = await self.manager.list_by_user(status_filter="confirmed")
+
+            # 保存上传记录
+            from src.models.database import AsyncSessionLocal
+            from src.models.entities import UploadedFile
+            async with AsyncSessionLocal() as session:
+                record = UploadedFile(
+                    filename=path.name,
+                    file_type=file_type,
+                    content_preview=content[:500] if content else None,
+                    extracted_count=success,
+                    status="processed" if success > 0 else "failed",
+                )
+                session.add(record)
+                await session.commit()
+
+            return success, len(drafts), exps
+
+        def on_success(result: tuple[int, int, List[Experience]]) -> None:
+            success, total, exps = result
+            self._populate_experiences(exps)
+            if success > 0:
+                QMessageBox.information(
+                    self, "导入完成",
+                    f"LLM 分析完成！\n成功导入 {success} / {total} 条经历。\n\n上传记录已保存。"
+                )
+                dialog.accept()
+            else:
+                QMessageBox.warning(
+                    self, "未能导入",
+                    f"LLM 分析未能提取有效经历。\n共分析出 {total} 条，但都未能成功导入。\n请检查文件内容或手动粘贴。"
+                )
+
+        start_async_task(
+            self,
+            self.status_label,
+            f"LLM 正在分析 {path.name}...",
+            analyze_and_import,
+            on_success,
+            self._show_task_error("文件分析失败"),
+            [self.btn_import, self.btn_refresh, self.btn_save, self.btn_delete],
+        )

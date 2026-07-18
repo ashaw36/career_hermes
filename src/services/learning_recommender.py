@@ -131,7 +131,6 @@ class LearningRecommender:
             raise LLMError("LLM 返回不是文本类型")
 
         try:
-            import json
             items = json.loads(response)
             if not isinstance(items, list):
                 raise ValueError("返回不是数组")

@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.services.jd_reframe_engine import JDReframeEngine
 from src.services.job_matcher import JobMatcher
 from src.services.job_parser import JobParser
 from src.services.persona_engine import PersonaEngine
@@ -41,8 +42,8 @@ class JobMatchPage(QWidget):
 
     布局：
     - 顶部：角色选择 + 粘贴 JD + 解析匹配按钮
-    - 左侧：JD 列表
-    - 右侧：匹配结果详情
+    - 左侧：JD 列表（含删除操作）
+    - 右侧：匹配结果详情 + 简历修饰功能
     """
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -50,8 +51,10 @@ class JobMatchPage(QWidget):
         self._persona_engine = PersonaEngine()
         self._job_parser = JobParser()
         self._job_matcher = JobMatcher()
+        self._jd_reframe_engine = JDReframeEngine()
         self._personas: List[Any] = []
         self._current_job_id: Optional[str] = None
+        self._current_match_id: Optional[str] = None
         self._async_tasks: set[Any] = set()
         self._init_ui()
         self._load_personas()
@@ -97,8 +100,8 @@ class JobMatchPage(QWidget):
         left_layout.addWidget(QLabel("已解析的岗位"))
 
         self._job_table = QTableWidget()
-        self._job_table.setColumnCount(4)
-        self._job_table.setHorizontalHeaderLabels(["岗位名称", "公司", "地点", "操作"])
+        self._job_table.setColumnCount(5)
+        self._job_table.setHorizontalHeaderLabels(["岗位名称", "公司", "地点", "查看", "删除"])
         self._job_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._job_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._job_table.horizontalHeader().setStretchLastSection(True)
@@ -126,6 +129,24 @@ class JobMatchPage(QWidget):
         self._match_detail = QTextEdit()
         self._match_detail.setReadOnly(True)
         right_layout.addWidget(self._match_detail)
+
+        # 简历修饰区
+        reframe_bar = QHBoxLayout()
+        self._reframe_btn = QPushButton("✏️ 修饰简历以匹配此岗位")
+        self._reframe_btn.setStyleSheet(
+            "QPushButton { background-color: #9b59b6; color: white; padding: 6px 16px; }"
+        )
+        self._reframe_btn.setEnabled(False)
+        self._reframe_btn.clicked.connect(self._on_reframe_resume)
+        reframe_bar.addWidget(self._reframe_btn)
+        reframe_bar.addStretch()
+        right_layout.addLayout(reframe_bar)
+
+        self._reframe_detail = QTextEdit()
+        self._reframe_detail.setReadOnly(True)
+        self._reframe_detail.setPlaceholderText("点击「修饰简历」后，将展示针对此岗位优化后的经历描述...")
+        self._reframe_detail.setMaximumHeight(200)
+        right_layout.addWidget(self._reframe_detail)
 
         # 状态更新
         status_bar = QHBoxLayout()
@@ -186,9 +207,16 @@ class JobMatchPage(QWidget):
             self._job_table.setItem(i, 0, QTableWidgetItem(job.title or "未命名"))
             self._job_table.setItem(i, 1, QTableWidgetItem(job.company or "-"))
             self._job_table.setItem(i, 2, QTableWidgetItem(job.location or "-"))
-            btn = QPushButton("查看")
-            btn.clicked.connect(lambda checked, jid=job.id: self._on_view_job(jid))
-            self._job_table.setCellWidget(i, 3, btn)
+
+            view_btn = QPushButton("查看")
+            view_btn.clicked.connect(lambda checked, jid=job.id: self._on_view_job(jid))
+            self._job_table.setCellWidget(i, 3, view_btn)
+
+            del_btn = QPushButton("删除")
+            del_btn.setStyleSheet("QPushButton { color: #e74c3c; }")
+            del_btn.clicked.connect(lambda checked, jid=job.id: self._on_delete_job(jid))
+            self._job_table.setCellWidget(i, 4, del_btn)
+
         self._job_table.resizeColumnsToContents()
 
     def _show_task_error(self, title: str) -> Any:
@@ -286,8 +314,9 @@ class JobMatchPage(QWidget):
 
         lines = [
             f"### 匹配分项",
-            f"- 技能匹配: {match.score_breakdown.get('skill', 0)} / 60",
-            f"- 经验匹配: {match.score_breakdown.get('experience', 0)} / 30",
+            f"- 技能匹配: {match.score_breakdown.get('skill', 0)} / 50",
+            f"- 经验匹配: {match.score_breakdown.get('experience', 0)} / 25",
+            f"- 文本相似度: {match.score_breakdown.get('text_similarity', 0)} / 15",
             f"- 其他匹配: {match.score_breakdown.get('other', 0)} / 10",
             f"",
             f"### 匹配技能 ({len(match.matched_skills or [])} 个)",
@@ -303,6 +332,23 @@ class JobMatchPage(QWidget):
 
         self._match_detail.setText("\n".join(lines))
         self._status_combo.setCurrentText(match.tracking_status)
+
+        # 保存当前 match_id 并启用修饰按钮
+        self._current_match_id = match.id
+        self._reframe_btn.setEnabled(True)
+        self._reframe_detail.clear()
+        self._reframe_detail.setPlaceholderText("点击「修饰简历」后，将展示针对此岗位优化后的经历描述...")
+
+        # 检查是否已有缓存的修饰结果
+        start_async_task(
+            self,
+            self._status_label,
+            "检查缓存修饰结果...",
+            lambda: self._jd_reframe_engine.get_reframed_experiences(match.id),
+            self._display_reframed_experiences,
+            lambda exc: logger.debug("无缓存修饰结果: %s", exc),
+            [],
+        )
 
     def _on_update_status(self) -> None:
         """更新投递状态"""
@@ -345,3 +391,110 @@ class JobMatchPage(QWidget):
             self._show_task_error("更新状态失败"),
             [self._update_status_btn, self._parse_btn, self._refresh_btn],
         )
+
+    def _on_delete_job(self, job_id: str) -> None:
+        """删除岗位"""
+        reply = QMessageBox.question(
+            self,
+            "确认删除",
+            "确定删除此岗位吗？相关的匹配记录也将被删除。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        async def do_delete() -> bool:
+            # 先删除相关的修饰记录和匹配记录
+            persona_id = self._persona_combo.currentData()
+            if persona_id:
+                matches = await self._job_matcher.list_matches(persona_id)
+                for m in matches:
+                    if m.job_desc_id == job_id:
+                        await self._jd_reframe_engine.delete_reframes(m.id)
+                        await self._job_matcher.delete_match(m.id)
+            return await self._job_parser.delete(job_id)
+
+        def on_success(deleted: bool) -> None:
+            if deleted:
+                QMessageBox.information(self, "成功", "岗位已删除")
+                self._load_job_list()
+                # 清空右侧显示
+                self._match_score_label.setText("请选择岗位查看匹配度")
+                self._match_detail.clear()
+                self._reframe_detail.clear()
+                self._reframe_btn.setEnabled(False)
+                self._current_job_id = None
+                self._current_match_id = None
+            else:
+                QMessageBox.warning(self, "失败", "删除岗位失败")
+
+        start_async_task(
+            self,
+            self._status_label,
+            "正在删除岗位...",
+            do_delete,
+            on_success,
+            self._show_task_error("删除失败"),
+            [self._refresh_btn, self._parse_btn],
+        )
+
+    def _on_reframe_resume(self) -> None:
+        """修饰简历以匹配当前岗位"""
+        if not self._current_match_id:
+            QMessageBox.warning(self, "警告", "请先选择岗位并查看匹配结果")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "确认修饰",
+            "是否重新修饰简历？\n\n将使用 LLM 根据岗位 JD 优化经历描述，可能需要一些时间。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        force = False
+        # 如果已有缓存，询问是否强制刷新
+        if self._reframe_detail.toPlainText().strip():
+            reply2 = QMessageBox.question(
+                self,
+                "已有缓存",
+                "已有缓存的修饰结果，是否强制重新修饰？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            force = reply2 == QMessageBox.StandardButton.Yes
+
+        async def do_reframe() -> List[Any]:
+            return await self._jd_reframe_engine.reframe_experiences_for_job(
+                self._current_match_id, force_refresh=force
+            )
+
+        start_async_task(
+            self,
+            self._status_label,
+            "正在修饰简历（可能需要几十秒）...",
+            do_reframe,
+            self._display_reframed_experiences,
+            self._show_task_error("修饰失败"),
+            [self._reframe_btn, self._update_status_btn, self._parse_btn],
+        )
+
+    def _display_reframed_experiences(self, reframes: List[Any]) -> None:
+        """展示修饰后的经历"""
+        if not reframes:
+            self._reframe_detail.setPlainText("暂无修饰结果。\n\n点击「修饰简历」按钮以生成针对此岗位优化的经历描述。")
+            return
+
+        lines: List[str] = ["## 修饰后的经历\n"]
+        for i, r in enumerate(reframes, 1):
+            lines.append(f"### {i}. {r.original_summary[:40]}...")
+            strategy = r.reframing_strategy or "未说明"
+            lines.append("> **修饰策略**: " + strategy)
+            lines.append("")
+            lines.append(r.reframed_summary)
+            lines.append("---\n")
+
+        self._reframe_detail.setPlainText("\n".join(lines))

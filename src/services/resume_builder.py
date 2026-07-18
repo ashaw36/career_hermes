@@ -7,6 +7,7 @@ CareerCraft Agent — 简历生成引擎
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,6 +18,7 @@ from src.llm.router import LLMRouter
 from src.models.entities import Experience, Persona, RoleExperienceWeight
 from src.services.persona_engine import PersonaEngine
 
+logger = logging.getLogger(__name__)
 
 class ResumeBuilder:
     """
@@ -45,13 +47,61 @@ class ResumeBuilder:
 
         # 计算并获取按 Fit Score 排序的经历
         await self.persona_engine.calculate_fit_scores(self.persona_id)
-        min_score = getattr(self._persona, "min_relevance_score", None) or 0.15
+        min_score = getattr(self._persona, "min_relevance_score", None) or 0.05
         self._experiences = await self.persona_engine.get_weighted_experiences(
             self.persona_id,
             min_score=min_score,
             limit=self._persona.max_experiences,
         )
+
+        # Fallback: 若过滤后为空，降级 min_score 直到有结果
+        if not self._experiences:
+            logger.warning(
+                "简历生成: min_score=%.2f 过滤后经历为空，尝试降级阈值", min_score
+            )
+            for fallback_score in (0.0,):
+                self._experiences = await self.persona_engine.get_weighted_experiences(
+                    self.persona_id,
+                    min_score=fallback_score,
+                    limit=self._persona.max_experiences,
+                )
+                if self._experiences:
+                    logger.info(
+                        "简历生成: fallback min_score=%.2f 后获取 %d 条经历",
+                        fallback_score,
+                        len(self._experiences),
+                    )
+                    break
+
+        # 最终 Fallback: 若仍为空，直接加载所有 confirmed 经历
+        if not self._experiences:
+            logger.warning("简历生成: RoleExperienceWeight 为空，直接加载 confirmed 经历")
+            from src.models.database import AsyncSessionLocal
+            from src.models.entities import Experience
+            from sqlalchemy import select
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    select(Experience).where(
+                        Experience.user_id == self._persona.user_id,
+                        Experience.status == "confirmed",
+                    ).order_by(Experience.start_date.desc())
+                    .limit(self._persona.max_experiences)
+                )
+                exps = list(result.scalars().all())
+                # 包装为 RoleExperienceWeight 的兼容结构
+                for exp in exps:
+                    self._experiences.append(self._SimpleWeight(exp))
+                logger.info("简历生成: 直接加载 %d 条 confirmed 经历", len(exps))
+
         return self
+
+    class _SimpleWeight:
+        """Fallback 用的简化权重包装，兼容 RoleExperienceWeight 接口"""
+        def __init__(self, experience: Experience) -> None:
+            self.experience = experience
+            self.relevance_score = 0.5
+            self.reframed_summary = None
+            self.highlighted_skills = None
 
     async def render(
         self,
@@ -101,6 +151,9 @@ class ResumeBuilder:
         education_exps = []
         for rew in self._experiences:
             exp = rew.experience
+            if exp is None:
+                logger.warning("简历生成: RoleExperienceWeight 缺少 experience 对象，跳过")
+                continue
             # 优先使用重述，fallback 到原始描述
             description = rew.reframed_summary or exp.raw_description or ""
             entry = {

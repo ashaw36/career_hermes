@@ -727,19 +727,19 @@
 
           <div class="stats-row">
             <div class="stat-card">
-              <div class="stat-value" id="stat-experiences">12</div>
+              <div class="stat-value" id="stat-experiences">—</div>
               <div class="stat-label">已录入经历</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="stat-personas">3</div>
+              <div class="stat-value" id="stat-personas">—</div>
               <div class="stat-label">角色档案</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="stat-matches">8</div>
+              <div class="stat-value" id="stat-matches">—</div>
               <div class="stat-label">岗位匹配</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="stat-paths">2</div>
+              <div class="stat-value" id="stat-paths">—</div>
               <div class="stat-label">学习路径</div>
             </div>
           </div>
@@ -752,81 +752,64 @@
               <div class="toolbar">
                 <span class="section-title">经历库</span>
                 <div class="toolbar-spacer"></div>
-                <button class="btn btn-primary btn-sm">+ 新建</button>
+                <button class="btn btn-primary btn-sm" onclick="newExperience()">+ 新建</button>
               </div>
               <div class="exp-list" id="exp-list-container">
-                <div class="exp-item selected">
-                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
-                  <div class="exp-info">
-                    <div class="exp-title">供应链数字化平台</div>
-                    <div class="exp-sub">产品经理 · 韶音科技 · 2024.01 — 至今</div>
-                  </div>
-                  <div class="exp-tags">
-                    <span class="pill pill-accent">PM</span>
-                  </div>
-                </div>
-                <div class="exp-item">
-                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
-                  <div class="exp-info">
-                    <div class="exp-title">AI Agent 运维助手</div>
-                    <div class="exp-sub">产品经理 · 美团 · 2023.06 — 2023.12</div>
-                  </div>
-                  <div class="exp-tags">
-                    <span class="pill">AI</span>
-                  </div>
-                </div>
-                <div class="exp-item">
-                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg></div>
-                  <div class="exp-info">
-                    <div class="exp-title">多模态情绪识别研究</div>
-                    <div class="exp-sub">研究生项目 · 中山大学 · 2022.09 — 2023.05</div>
-                  </div>
-                  <div class="exp-tags">
-                    <span class="pill">ML</span>
-                  </div>
-                </div>
+                <div style="color: var(--text-tertiary); padding: 24px; text-align: center;">加载中...</div>
               </div>
             </div>
 
-            <div class="split-right">
+            <div class="split-right" id="exp-detail-panel">
               <div class="card">
                 <div class="card-header">
                   <div>
-                    <div class="card-title">供应链数字化平台</div>
-                    <div class="card-meta">产品经理 @ 韶音科技 · 2024.01 — 至今</div>
+                    <div class="card-title" id="exp-card-title">请选择经历</div>
+                    <div class="card-meta" id="exp-card-meta"></div>
                   </div>
-                  <div class="exp-tags">
-                    <span class="pill pill-success">已确认</span>
-                  </div>
+                  <div class="exp-tags" id="exp-card-tags"></div>
                 </div>
                 <div class="card-body">
-                  <p>负责供应链数字化平台的产品规划与落地，协调研发、运营、采购多部门配合，实现了从订单到仓库的全链路自动化。</p>
-                  <div style="margin-top: 12px;">
-                    <span class="pill">Python</span>
-                    <span class="pill">SQL</span>
-                    <span class="pill">产品规划</span>
-                  </div>
+                  <p id="exp-card-body"></p>
                 </div>
               </div>
 
               <div style="margin-top: 16px;">
+                <input type="hidden" id="exp-form-id">
+                <div class="form-group">
+                  <label class="form-label">项目名称</label>
+                  <input class="form-input" id="exp-form-title" type="text" placeholder="项目名称">
+                </div>
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">职位</label>
+                    <input class="form-input" id="exp-form-role" type="text" placeholder="职位">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">公司/组织</label>
+                    <input class="form-input" id="exp-form-company" type="text" placeholder="公司">
+                  </div>
+                </div>
                 <div class="form-group">
                   <label class="form-label">项目描述</label>
-                  <textarea class="form-textarea">负责供应链数字化平台的产品规划与落地...</textarea>
+                  <textarea class="form-textarea" id="exp-form-description" placeholder="描述你的职责和成果..."></textarea>
                 </div>
                 <div class="grid-2">
                   <div class="form-group">
                     <label class="form-label">开始时间</label>
-                    <input class="form-input" type="text" value="2024-01">
+                    <input class="form-input" id="exp-form-start" type="text" placeholder="2024-01">
                   </div>
                   <div class="form-group">
                     <label class="form-label">结束时间</label>
-                    <input class="form-input" type="text" value="至今">
+                    <input class="form-input" id="exp-form-end" type="text" placeholder="至今">
                   </div>
                 </div>
+                <div class="form-group">
+                  <label class="form-label">技能标签 (逗号分隔)</label>
+                  <input class="form-input" id="exp-form-skills" type="text" placeholder="Python, SQL, 产品规划">
+                </div>
                 <div class="toolbar" style="margin-top: 8px;">
-                  <button class="btn btn-primary">保存</button>
-                  <button class="btn btn-ghost">删除</button>
+                  <button class="btn btn-primary" onclick="saveCurrentExperience()">保存</button>
+                  <button class="btn btn-ghost" onclick="deleteCurrentExperience()">删除</button>
                 </div>
               </div>
             </div>
@@ -840,52 +823,38 @@
               <div class="toolbar">
                 <span class="section-title">角色档案</span>
                 <div class="toolbar-spacer"></div>
-                <button class="btn btn-primary btn-sm">+ 新建角色</button>
+                <button class="btn btn-primary btn-sm" onclick="createNewPersona()">+ 新建角色</button>
               </div>
               <div class="exp-list" id="persona-list-container">
-                <div class="exp-item selected">
-                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-                  <div class="exp-info">
-                    <div class="exp-title">产品经理角色</div>
-                    <div class="exp-sub">供应链PM · 5段经历 · 创建 2024-06</div>
-                  </div>
-                  <div class="exp-tags">
-                    <span class="pill pill-accent">默认</span>
-                  </div>
-                </div>
-                <div class="exp-item">
-                  <div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></div>
-                  <div class="exp-info">
-                    <div class="exp-title">AI产品经理角色</div>
-                    <div class="exp-sub">AI Agent方向 · 3段经历 · 创建 2024-07</div>
-                  </div>
-                </div>
+                <div style="color: var(--text-tertiary); padding: 24px; text-align: center;">加载中...</div>
               </div>
             </div>
             <div class="split-right">
               <div class="card">
+                <input type="hidden" id="persona-form-id">
                 <div class="form-group">
                   <label class="form-label">角色名称</label>
-                  <input class="form-input" value="产品经理角色">
+                  <input class="form-input" id="persona-form-name" type="text" placeholder="角色名称">
                 </div>
                 <div class="form-group">
                   <label class="form-label">身份声明</label>
-                  <textarea class="form-textarea">供应链数字化产品经理，擅长跨部门协作与全链路自动化...</textarea>
+                  <textarea class="form-textarea" id="persona-form-identity" placeholder="描述你的职业身份..."></textarea>
                 </div>
                 <div class="form-group">
                   <label class="form-label">语气风格</label>
-                  <select class="form-select">
-                    <option>business_insight</option>
-                    <option>data_driven</option>
-                    <option>technical_deep</option>
+                  <select class="form-select" id="persona-form-tone">
+                    <option value="business_insight">business_insight</option>
+                    <option value="data_driven">data_driven</option>
+                    <option value="technical_deep">technical_deep</option>
                   </select>
                 </div>
                 <div class="form-group">
                   <label class="form-label">目标岗位</label>
-                  <input class="form-input" value="产品经理, 供应链PM, AI产品经理">
+                  <input class="form-input" id="persona-form-targets" type="text" placeholder="产品经理, 供应链PM">
                 </div>
                 <div class="toolbar">
-                  <button class="btn btn-primary">保存角色</button>
+                  <button class="btn btn-primary" onclick="saveCurrentPersona()">保存角色</button>
+                  <button class="btn btn-ghost" onclick="deleteCurrentPersona()">删除</button>
                 </div>
               </div>
             </div>
@@ -897,61 +866,32 @@
           <div class="toolbar">
             <span class="section-title">简历生成</span>
             <div class="toolbar-spacer"></div>
-            <select class="form-select" style="width: 160px;">
-              <option>产品经理角色</option>
-              <option>AI产品经理角色</option>
+            <select class="form-select" id="resume-persona-select" style="width: 160px;">
+              <option value="">加载中...</option>
             </select>
+            <button class="btn btn-primary btn-sm" onclick="generateResumeForSelectedPersona()">生成简历</button>
             <button class="btn btn-ghost btn-sm">导出 Markdown</button>
             <button class="btn btn-primary btn-sm">导出 PDF</button>
           </div>
           <div class="grid-2">
             <div>
-              <div class="section-subtitle">基于「产品经理角色」生成的简历预览</div>
-              <div class="resume-preview">
-                <h1>产品经理角色</h1>
-                <blockquote>供应链数字化产品经理，擅长跨部门协作与全链路自动化...</blockquote>
-
-                <h2>工作经历</h2>
-                <h3>供应链数字化平台 | 韶音科技</h3>
-                <p><em>2024.01 — 至今</em> | <span style="color: var(--accent-violet);">相关度: 85%</span></p>
-                <ul>
-                  <li>负责供应链数字化平台的产品规划与落地</li>
-                  <li>协调研发、运营、采购多部门配合</li>
-                  <li>实现从订单到仓库的全链路自动化</li>
-                </ul>
-                <p><strong>技能</strong>: Python、SQL、产品规划</p>
-
-                <h3>AI Agent 运维助手 | 美团</h3>
-                <p><em>2023.06 — 2023.12</em></p>
-                <ul>
-                  <li>主导 AI 运维助手的产品设计与迭代</li>
-                  <li>基于 RAG 架构搭建运维知识库</li>
-                </ul>
-
-                <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 24px 0;">
-                <p style="font-size: 12px; color: var(--text-quaternary);">
-                  <em>由 CareerCraft Agent 生成于 2024-07-17</em>
-                </p>
+              <div class="section-subtitle" id="resume-subtitle">选择角色并生成简历预览</div>
+              <div class="resume-preview" id="resume-preview-content">
+                <p style="color: var(--text-tertiary); text-align: center;">选择角色并点击「生成简历」查看预览</p>
               </div>
             </div>
             <div>
               <div class="section-subtitle">技能覆盖分析</div>
               <div class="card" style="margin-bottom: 12px;">
-                <div class="card-title">已覆盖技能 (8)</div>
-                <div style="margin-top: 10px;">
-                  <span class="pill pill-success">Python</span>
-                  <span class="pill pill-success">SQL</span>
-                  <span class="pill pill-success">产品规划</span>
-                  <span class="pill pill-success">RAG</span>
-                  <span class="pill pill-success">数据分析</span>
+                <div class="card-title">已覆盖技能</div>
+                <div style="margin-top: 10px;" id="resume-covered-skills">
+                  <span class="pill">请先生成简历</span>
                 </div>
               </div>
               <div class="card">
-                <div class="card-title">缺失技能 (3)</div>
-                <div style="margin-top: 10px;">
-                  <span class="pill">Kubernetes</span>
-                  <span class="pill">gRPC</span>
-                  <span class="pill">微服务</span>
+                <div class="card-title">缺失技能</div>
+                <div style="margin-top: 10px;" id="resume-missing-skills">
+                  <span class="pill">请先生成简历</span>
                 </div>
                 <button class="btn btn-primary" style="margin-top: 14px; width: 100%;">生成学习路径</button>
               </div>
@@ -964,57 +904,40 @@
           <div class="toolbar">
             <span class="section-title">岗位匹配</span>
             <div class="toolbar-spacer"></div>
-            <button class="btn btn-ghost btn-sm">导入 JD</button>
-            <button class="btn btn-primary btn-sm">+ 添加岗位</button>
+            <select id="job-persona-select" class="form-select" style="width:180px; margin-right:8px;">
+              <option value="">加载中...</option>
+            </select>
           </div>
 
-          <div class="match-card">
-            <div class="score-ring">
-              <svg width="80" height="80" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
-                <circle cx="40" cy="40" r="36" fill="none" stroke="var(--accent-brand)" stroke-width="4"
-                  stroke-dasharray="226" stroke-dashoffset="45" stroke-linecap="round"/>
-              </svg>
-              <span class="score-value">80</span>
+          <!-- JD 粘贴区 -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-title">粘贴岗位描述 (JD)</div>
+            <textarea id="jd-input" class="form-input" rows="4" placeholder="在此粘贴岗位描述文本..."></textarea>
+            <div class="toolbar" style="margin-top: 12px;">
+              <button class="btn btn-primary btn-sm" onclick="parseAndMatch()">解析并匹配</button>
             </div>
-            <div class="match-info">
-              <div class="match-title">高级产品经理</div>
-              <div class="match-company">字节跳动 · 深圳 · 3-5年经验</div>
-              <div class="match-skills">
-                <span class="pill pill-success">Python</span>
-                <span class="pill pill-success">数据分析</span>
-                <span class="pill pill-success">产品规划</span>
-                <span class="pill">微服务</span>
-              </div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-ghost btn-sm">查看报告</button>
-              <button class="btn btn-primary btn-sm">生成简历</button>
-            </div>
+            <div id="jd-parse-status" style="margin-top: 8px; font-size: 13px; color: var(--text-tertiary);"></div>
           </div>
 
-          <div class="match-card">
-            <div class="score-ring">
-              <svg width="80" height="80" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
-                <circle cx="40" cy="40" r="36" fill="none" stroke="var(--warning)" stroke-width="4"
-                  stroke-dasharray="226" stroke-dashoffset="136" stroke-linecap="round"/>
-              </svg>
-              <span class="score-value">40</span>
+          <!-- 岗位列表 -->
+          <div id="jobs-list-container"></div>
+
+          <!-- 匹配详情模态框 -->
+          <div id="match-detail-panel" class="card" style="margin-top: 16px; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div class="card-title" id="match-detail-title">匹配详情</div>
+              <button class="btn btn-ghost btn-sm" onclick="closeMatchDetail()">✕ 关闭</button>
             </div>
-            <div class="match-info">
-              <div class="match-title">后端开发工程师</div>
-              <div class="match-company">腾讯 · 广州 · 5年以上</div>
-              <div class="match-skills">
-                <span class="pill pill-success">Python</span>
-                <span class="pill">Go</span>
-                <span class="pill">Kubernetes</span>
-                <span class="pill">gRPC</span>
+            <div id="match-detail-content"></div>
+
+            <!-- 修饰简历区 -->
+            <div style="margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div class="card-title" style="font-size: 14px;">简历修饰 (针对此岗位)</div>
+                <button class="btn btn-primary btn-sm" id="reframe-btn" onclick="reframeResume()">✨ 修饰简历</button>
               </div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-ghost btn-sm">查看报告</button>
-              <button class="btn btn-ghost btn-sm">生成学习路径</button>
+              <div id="reframe-status" style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px;"></div>
+              <div id="reframe-results"></div>
             </div>
           </div>
         </div>
@@ -1060,7 +983,8 @@
                   <input class="form-input" type="number" value="5">
                 </div>
                 <div class="toolbar">
-                  <button class="btn btn-primary">保存偏好</button>
+                  <button class="btn btn-primary" onclick="saveCurrentPersona()">保存角色</button>
+                  <button class="btn btn-ghost" onclick="deleteCurrentPersona()">删除</button>
                 </div>
               </div>
             </div>
@@ -1068,6 +992,23 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Global Loading Overlay -->
+  <div id="global-loading" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px;">
+    <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent-brand); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <div id="loading-text" style="color: var(--text-secondary); font-size: 14px;">加载中...</div>
+  </div>
+  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+  <!-- Global Error Box -->
+  <div id="global-error" style="display: none; position: fixed; top: 16px; right: 16px; max-width: 360px; background: var(--bg-elevated); border: 1px solid rgba(231,76,60,0.3); border-radius: var(--radius-md); padding: 16px; z-index: 10000; box-shadow: var(--shadow-dialog);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+      <div style="font-weight: 600; color: #e74c3c; font-size: 14px;">⚠️ 操作失败</div>
+      <button onclick="hideError()" style="background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 16px; line-height: 1;">×</button>
+    </div>
+    <div id="error-message" style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;"></div>
+    <div id="error-suggestion" style="font-size: 12px; color: var(--text-tertiary); line-height: 1.5; padding-top: 8px; border-top: 1px solid var(--border-subtle); display: none;"></div>
   </div>
 
   <script>
@@ -1115,6 +1056,10 @@
           if (resp.success) renderPersonas(resp.data);
         } catch (e) { console.error('getPersonas error', e); }
       });
+
+      // Jobs
+      loadPersonasForJobs();
+      loadJobs();
     }
 
     /* ─── UI Helpers ─── */
@@ -1131,6 +1076,11 @@
       }
       var titles = {welcome: '欢迎', experiences: '经历库', personas: '角色档案', resume: '简历生成', jobs: '岗位匹配', settings: '设置'};
       document.getElementById('page-title').textContent = titles[pageId];
+      // 页面切换时触发加载
+      if (pageId === 'experiences') loadExperiencesFromBridge();
+      if (pageId === 'personas') loadPersonasFromBridge();
+      if (pageId === 'resume') loadResumePage();
+      if (pageId === 'jobs') { loadPersonasForJobs(); loadJobs(); }
     }
 
     function updateStats(data) {
@@ -1145,38 +1095,47 @@
     }
 
     function renderExperiences(list) {
-      if (!list || !list.length) return;
       var container = document.getElementById('exp-list-container');
       if (!container) return;
       container.innerHTML = '';
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="color: var(--text-tertiary); padding: 24px; text-align: center;">暂无经历</div>';
+        return;
+      }
       list.forEach(function(item) {
         var div = document.createElement('div');
         div.className = 'exp-item';
+        div.onclick = function() { selectExperience(item.id); };
         div.innerHTML =
           '<div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>' +
           '<div class="exp-info">' +
             '<div class="exp-title">' + escapeHtml(item.title || '') + '</div>' +
             '<div class="exp-sub">' + escapeHtml((item.role || '') + ' · ' + (item.company || '') + ' · ' + (item.start_date || '')) + '</div>' +
           '</div>' +
-          '<div class="exp-tags">' + (item.skills || []).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>';
+          '<div class="exp-tags">' + (item.skills || []).slice(0,3).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>';
         container.appendChild(div);
       });
     }
 
     function renderPersonas(list) {
-      if (!list || !list.length) return;
       var container = document.getElementById('persona-list-container');
       if (!container) return;
       container.innerHTML = '';
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="color: var(--text-tertiary); padding: 24px; text-align: center;">暂无角色</div>';
+        return;
+      }
       list.forEach(function(item) {
         var div = document.createElement('div');
         div.className = 'exp-item';
+        div.onclick = function() { selectPersona(item.id); };
         div.innerHTML =
           '<div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>' +
           '<div class="exp-info">' +
             '<div class="exp-title">' + escapeHtml(item.name || '') + '</div>' +
             '<div class="exp-sub">' + escapeHtml((item.identity_statement || '').substring(0, 40)) + '</div>' +
-          '</div>';
+          '</div>' +
+          (item.is_default ? '<div class="exp-tags"><span class="pill pill-accent">默认</span></div>' : '');
         container.appendChild(div);
       });
     }
@@ -1185,6 +1144,507 @@
       var div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    /* ——— Dynamic Page Loaders ——— */
+    var gExperiences = [];
+    var gPersonas = [];
+    var gSelectedExpId = null;
+    var gSelectedPersonaId = null;
+
+    function selectExperience(expId) {
+      gSelectedExpId = expId;
+      var item = gExperiences.find(function(e) { return e.id === expId; });
+      if (!item) return;
+      // 更新列表选中状态
+      document.querySelectorAll('#exp-list-container .exp-item').forEach(function(el, idx) {
+        el.classList.toggle('selected', gExperiences[idx] && gExperiences[idx].id === expId);
+      });
+      // 填充右侧表单
+      var titleEl = document.querySelector('#page-experiences .split-right .card-title');
+      if (titleEl) titleEl.textContent = item.title || '';
+      var metaEl = document.querySelector('#page-experiences .split-right .card-meta');
+      if (metaEl) metaEl.textContent = (item.role || '') + ' @ ' + (item.company || '') + ' · ' + (item.start_date || '') + ' — ' + (item.end_date || '至今');
+      var descArea = document.querySelector('#page-experiences .split-right textarea');
+      if (descArea) descArea.value = item.description || '';
+      var inputs = document.querySelectorAll('#page-experiences .split-right .form-input');
+      if (inputs.length >= 2) {
+        inputs[0].value = item.start_date || '';
+        inputs[1].value = item.end_date || '';
+      }
+    }
+
+    function saveCurrentExperience() {
+      if (!gSelectedExpId) { alert('请先选择一条经历'); return; }
+      var desc = document.querySelector('#page-experiences .split-right textarea');
+      var inputs = document.querySelectorAll('#page-experiences .split-right .form-input');
+      var payload = {
+        id: gSelectedExpId,
+        raw_description: desc ? desc.value : '',
+        start_date: inputs.length >= 1 ? inputs[0].value : '',
+        end_date: inputs.length >= 2 ? inputs[1].value : '',
+      };
+      if (!window.pybridge) return;
+      window.pybridge.saveExperience(JSON.stringify(payload), function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            alert('保存成功');
+            loadExperiencesFromBridge();
+          } else if (resp.error_type === 'TIME_CONFLICT') {
+            var names = (resp.conflicts || []).map(function(c){ return c.title; }).join(', ');
+            alert('时间冲突：与 ' + names + ' 重叠，请调整日期后重试');
+          } else {
+            alert('保存失败: ' + (resp.error || ''));
+          }
+        } catch (e) { alert('保存错误'); }
+      });
+    }
+
+    function deleteCurrentExperience() {
+      if (!gSelectedExpId) { alert('请先选择一条经历'); return; }
+      if (!confirm('确定删除该经历？')) return;
+      if (!window.pybridge) return;
+      window.pybridge.deleteExperience(gSelectedExpId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            gSelectedExpId = null;
+            loadExperiencesFromBridge();
+          } else {
+            alert('删除失败: ' + (resp.error || ''));
+          }
+        } catch (e) { alert('删除错误'); }
+      });
+    }
+
+    function loadExperiencesFromBridge() {
+      if (!window.pybridge) return;
+      window.pybridge.getExperiences(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) { gExperiences = resp.data || []; renderExperiences(gExperiences); }
+        } catch (e) { console.error('loadExperiences error', e); }
+      });
+    }
+
+    function selectPersona(personaId) {
+      gSelectedPersonaId = personaId;
+      var item = gPersonas.find(function(p) { return p.id === personaId; });
+      if (!item) return;
+      document.querySelectorAll('#persona-list-container .exp-item').forEach(function(el, idx) {
+        el.classList.toggle('selected', gPersonas[idx] && gPersonas[idx].id === personaId);
+      });
+      var inputs = document.querySelectorAll('#page-personas .split-right .form-input, #page-personas .split-right .form-textarea, #page-personas .split-right .form-select');
+      if (inputs.length >= 4) {
+        inputs[0].value = item.name || '';
+        inputs[1].value = item.identity_statement || '';
+        inputs[2].value = item.tone_style || 'business_insight';
+        inputs[3].value = (item.target_job_profiles || []).join(', ');
+      }
+    }
+
+    function saveCurrentPersona() {
+      if (!gSelectedPersonaId) { alert('请先选择一个角色'); return; }
+      var inputs = document.querySelectorAll('#page-personas .split-right .form-input, #page-personas .split-right .form-textarea, #page-personas .split-right .form-select');
+      if (inputs.length < 4) return;
+      var payload = {
+        name: inputs[0].value,
+        identity_statement: inputs[1].value,
+        tone_style: inputs[2].value,
+        target_job_profiles: inputs[3].value.split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s; }),
+      };
+      if (!window.pybridge) return;
+      window.pybridge.updatePersona(gSelectedPersonaId, JSON.stringify(payload), function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            alert('保存成功');
+            loadPersonasFromBridge();
+          } else {
+            alert('保存失败: ' + (resp.error || ''));
+          }
+        } catch (e) { alert('保存错误'); }
+      });
+    }
+
+    function deleteCurrentPersona() {
+      if (!gSelectedPersonaId) { alert('请先选择一个角色'); return; }
+      if (!confirm('确定删除该角色？')) return;
+      if (!window.pybridge) return;
+      window.pybridge.deletePersona(gSelectedPersonaId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            gSelectedPersonaId = null;
+            loadPersonasFromBridge();
+          } else {
+            alert('删除失败: ' + (resp.error || ''));
+          }
+        } catch (e) { alert('删除错误'); }
+      });
+    }
+
+    function createNewPersona() {
+      var name = prompt('输入新角色名称:');
+      if (!name) return;
+      if (!window.pybridge) return;
+      window.pybridge.createPersona(JSON.stringify({name: name, identity_statement: '', capability_weights: {}}), function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            loadPersonasFromBridge();
+          } else {
+            alert('创建失败: ' + (resp.error || ''));
+          }
+        } catch (e) { alert('创建错误'); }
+      });
+    }
+
+    function loadPersonasFromBridge() {
+      if (!window.pybridge) return;
+      window.pybridge.getPersonas(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) { gPersonas = resp.data || []; renderPersonas(gPersonas); }
+        } catch (e) { console.error('loadPersonas error', e); }
+      });
+    }
+
+    function loadResumePage() {
+      if (!window.pybridge) return;
+      // 动态填充角色选择框
+      window.pybridge.getPersonas(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (!resp.success) return;
+          var select = document.querySelector('#page-resume select.form-select');
+          if (!select) return;
+          var current = select.value;
+          select.innerHTML = '';
+          resp.data.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+          });
+          if (current) select.value = current;
+          else if (resp.data.length) select.value = resp.data[0].id;
+        } catch (e) { console.error('loadResumePersonas error', e); }
+      });
+    }
+
+    function generateResumeForSelectedPersona() {
+      var select = document.querySelector('#page-resume select.form-select');
+      if (!select || !select.value) { showError('请先选择角色', ''); return; }
+      if (!window.pybridge) return;
+      var preview = document.querySelector('#page-resume .resume-preview');
+      if (preview) preview.innerHTML = '<div style="color: var(--text-tertiary);">生成中...</div>';
+      showLoading('正在生成简历...');
+      window.pybridge.generateResume(select.value, function(result) {
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success && preview) {
+            preview.innerHTML = resp.markdown || '';
+          } else {
+            if (preview) preview.innerHTML = '<div style="color: var(--danger);">生成失败: ' + escapeHtml(resp.error || '') + '</div>';
+            showError('简历生成失败', resp.error || '请检查 LLM 配置或网络连接');
+          }
+        } catch (e) { hideLoading(); if (preview) preview.innerHTML = '<div style="color: var(--danger);">生成错误</div>'; }
+      });
+    }
+
+    /* ——— Loading Overlay ——— */
+    function showLoading(text) {
+      var overlay = document.getElementById('global-loading');
+      if (!overlay) return;
+      document.getElementById('loading-text').textContent = text || '加载中...';
+      overlay.style.display = 'flex';
+    }
+    function hideLoading() {
+      var overlay = document.getElementById('global-loading');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    /* ——— Friendly Error ——— */
+    function showError(message, suggestion) {
+      var box = document.getElementById('global-error');
+      var msgEl = document.getElementById('error-message');
+      var sugEl = document.getElementById('error-suggestion');
+      if (!box) { alert(message + (suggestion ? '\n\n建议: ' + suggestion : '')); return; }
+      msgEl.textContent = message || '发生错误';
+      sugEl.textContent = suggestion || '';
+      sugEl.style.display = suggestion ? 'block' : 'none';
+      box.style.display = 'block';
+    }
+    function hideError() {
+      var box = document.getElementById('global-error');
+      if (box) box.style.display = 'none';
+    }
+
+    var gCurrentPersonaId = null;
+    var gJobs = [];
+    var gCurrentMatchId = null;
+    var gCurrentJobId = null;
+
+    function loadPersonasForJobs() {
+      if (!window.pybridge) return;
+      window.pybridge.getPersonas(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (!resp.success) return;
+          var select = document.getElementById('job-persona-select');
+          if (!select) return;
+          var current = select.value;
+          select.innerHTML = '<option value="">请选择角色</option>';
+          resp.data.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+          });
+          if (current) select.value = current;
+          else if (resp.data.length > 0) {
+            select.value = resp.data[0].id;
+            gCurrentPersonaId = resp.data[0].id;
+          }
+        } catch (e) { console.error('loadPersonasForJobs error', e); }
+      });
+    }
+
+    function loadJobs() {
+      if (!window.pybridge) {
+        console.log('[Jobs] pybridge not ready');
+        return;
+      }
+      window.pybridge.listJobs(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            gJobs = resp.data || [];
+            renderJobs(gJobs);
+          }
+        } catch (e) { console.error('listJobs error', e); }
+      });
+    }
+
+    function renderJobs(list) {
+      var container = document.getElementById('jobs-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="color: var(--text-tertiary); padding: 24px; text-align: center;">暂无岗位，粘贴 JD 后点击"解析并匹配"</div>';
+        return;
+      }
+      list.forEach(function(job) {
+        var card = document.createElement('div');
+        card.className = 'match-card';
+        card.style.cursor = 'pointer';
+        var score = job.best_match_score || 0;
+        var offset = 226 - (score / 100) * 226;
+        var strokeColor = score >= 70 ? 'var(--accent-brand)' : (score >= 40 ? 'var(--warning)' : 'var(--danger)');
+        card.innerHTML =
+          '<div class="score-ring">' +
+            '<svg width="80" height="80" viewBox="0 0 80 80">' +
+              '<circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>' +
+              '<circle cx="40" cy="40" r="36" fill="none" stroke="' + strokeColor + '" stroke-width="4" stroke-dasharray="226" stroke-dashoffset="' + offset + '" stroke-linecap="round"/>' +
+            '</svg>' +
+            '<span class="score-value">' + Math.round(score) + '</span>' +
+          '</div>' +
+          '<div class="match-info" style="flex: 1;">' +
+            '<div class="match-title">' + escapeHtml(job.title || '') + '</div>' +
+            '<div class="match-company">' + escapeHtml((job.company || '') + ' · ' + (job.location || '') + ' · ' + (job.salary_range || '')) + '</div>' +
+            '<div class="match-skills">' + (job.skills || []).slice(0, 6).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>' +
+          '</div>' +
+          '<div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">' +
+            '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); viewJobMatches(' + job.id + ')">查看匹配</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteJob(' + job.id + ')">删除</button>' +
+          '</div>';
+        card.addEventListener('click', function() { viewJobMatches(job.id); });
+        container.appendChild(card);
+      });
+    }
+
+    function parseAndMatch() {
+      var jdText = document.getElementById('jd-input').value.trim();
+      var personaId = document.getElementById('job-persona-select').value;
+      var statusEl = document.getElementById('jd-parse-status');
+      if (!jdText) { statusEl.textContent = '请先粘贴岗位描述'; return; }
+      if (!personaId) { statusEl.textContent = '请先选择角色'; return; }
+      if (!window.pybridge) { statusEl.textContent = 'Python 桥接未就绪'; return; }
+      statusEl.textContent = '解析中...';
+      showLoading('解析 JD 并匹配中...');
+      window.pybridge.parseJD(jdText, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (!resp.success) {
+            hideLoading();
+            statusEl.textContent = '解析失败: ' + (resp.error || '');
+            showError('解析失败', resp.error || '');
+            return;
+          }
+          var jobId = resp.data.id;
+          statusEl.textContent = 'JD 解析完成，正在匹配...';
+          window.pybridge.matchJob(jobId, personaId, function(matchResult) {
+            hideLoading();
+            try {
+              var mResp = JSON.parse(matchResult);
+              if (mResp.success) {
+                statusEl.textContent = '匹配完成！分数: ' + Math.round(mResp.data.score || 0);
+                document.getElementById('jd-input').value = '';
+                loadJobs();
+                viewJobMatches(jobId);
+              } else {
+                statusEl.textContent = '匹配失败: ' + (mResp.error || '');
+                showError('匹配失败', mResp.error || '请检查 LLM 配置或网络连接');
+              }
+            } catch (e) { hideLoading(); statusEl.textContent = '匹配错误'; }
+          });
+        } catch (e) { hideLoading(); statusEl.textContent = '解析错误'; }
+      });
+    }
+
+    function viewJobMatches(jobId) {
+      if (!window.pybridge) return;
+      gCurrentJobId = jobId;
+      window.pybridge.getJobMatches(jobId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (!resp.success) return;
+          var matches = resp.data || [];
+          var panel = document.getElementById('match-detail-panel');
+          var content = document.getElementById('match-detail-content');
+          var title = document.getElementById('match-detail-title');
+          panel.style.display = 'block';
+          document.getElementById('reframe-results').innerHTML = '';
+          document.getElementById('reframe-status').textContent = '';
+          gCurrentMatchId = null;
+
+          if (!matches.length) {
+            content.innerHTML = '<div style="color: var(--text-tertiary);">暂无匹配记录</div>';
+            return;
+          }
+          var m = matches[0];
+          gCurrentMatchId = m.id;
+          title.textContent = (m.job_title || '岗位') + ' — 匹配详情';
+          var scoreColor = m.score >= 70 ? '#2ecc71' : (m.score >= 40 ? '#f39c12' : '#e74c3c');
+          content.innerHTML =
+            '<div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">' +
+              '<div style="font-size: 32px; font-weight: 700; color: ' + scoreColor + ';">' + Math.round(m.score || 0) + '</div>' +
+              '<div>' +
+                '<div style="font-size: 13px; color: var(--text-secondary);">匹配角色: ' + escapeHtml(m.persona_name || '') + '</div>' +
+                '<div style="font-size: 13px; color: var(--text-secondary);">投递状态: ' + escapeHtml(m.status || 'new') + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-bottom: 8px;"><strong>匹配理由:</strong></div>' +
+            '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.6;">' + escapeHtml(m.match_reason || '暂无') + '</div>' +
+            '<div style="margin-bottom: 8px;"><strong>技能匹配:</strong></div>' +
+            '<div class="match-skills" style="margin-bottom: 12px;">' + (m.skill_matches || []).map(function(s){ return '<span class="pill pill-success">' + escapeHtml(s) + '</span>'; }).join('') + '</div>' +
+            '<div style="margin-bottom: 8px;"><strong>经历强度:</strong></div>' +
+            '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">' + (m.strengths || []).map(function(s){ return '<div>• ' + escapeHtml(s) + '</div>'; }).join('') + '</div>' +
+            '<div style="display: flex; gap: 8px;">' +
+              '<select id="match-status-select" class="form-select" style="width:140px;">' +
+                '<option value="new" ' + (m.status==='new'?'selected':'') + '>new</option>' +
+                '<option value="applied" ' + (m.status==='applied'?'selected':'') + '>applied</option>' +
+                '<option value="interview" ' + (m.status==='interview'?'selected':'') + '>interview</option>' +
+                '<option value="offer" ' + (m.status==='offer'?'selected':'') + '>offer</option>' +
+                '<option value="rejected" ' + (m.status==='rejected'?'selected':'') + '>rejected</option>' +
+              '</select>' +
+              '<button class="btn btn-primary btn-sm" onclick="updateMatchStatus()">更新状态</button>' +
+            '</div>';
+
+          // 自动加载已有修饰结果
+          loadReframeResults(m.id);
+        } catch (e) { console.error('getJobMatches error', e); }
+      });
+    }
+
+    function closeMatchDetail() {
+      document.getElementById('match-detail-panel').style.display = 'none';
+      gCurrentMatchId = null;
+      gCurrentJobId = null;
+    }
+
+    function deleteJob(jobId) {
+      if (!confirm('确定删除该岗位？关联的匹配和修饰记录将一并删除。')) return;
+      if (!window.pybridge) return;
+      window.pybridge.deleteJob(jobId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            loadJobs();
+            if (gCurrentJobId === jobId) closeMatchDetail();
+          } else {
+            alert('删除失败: ' + (resp.error || ''));
+          }
+        } catch (e) { console.error('deleteJob error', e); }
+      });
+    }
+
+    function updateMatchStatus() {
+      if (!gCurrentMatchId) return;
+      var status = document.getElementById('match-status-select').value;
+      if (!window.pybridge) return;
+      window.pybridge.updateMatchStatus(gCurrentMatchId, status, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            alert('状态已更新为: ' + status);
+            if (gCurrentJobId) viewJobMatches(gCurrentJobId);
+          } else {
+            alert('更新失败: ' + (resp.error || ''));
+          }
+        } catch (e) { console.error('updateMatchStatus error', e); }
+      });
+    }
+
+    function reframeResume() {
+      if (!gCurrentMatchId) { showError('请先选择岗位并查看匹配详情', ''); return; }
+      var statusEl = document.getElementById('reframe-status');
+      var btn = document.getElementById('reframe-btn');
+      if (!window.pybridge) return;
+      statusEl.textContent = '修饰中，请稍候...';
+      btn.disabled = true;
+      showLoading('正在修饰经历，使其更符合 JD 要求...');
+      window.pybridge.reframeResume(gCurrentMatchId, function(result) {
+        btn.disabled = false;
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            statusEl.textContent = '修饰完成！';
+            loadReframeResults(gCurrentMatchId);
+          } else {
+            statusEl.textContent = '修饰失败: ' + (resp.error || '');
+            showError('修饰失败', resp.error || '请检查 LLM 配置或网络连接');
+          }
+        } catch (e) { hideLoading(); statusEl.textContent = '修饰错误'; }
+      });
+    }
+
+    function loadReframeResults(matchId) {
+      if (!window.pybridge) return;
+      window.pybridge.getReframeResults(matchId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          var container = document.getElementById('reframe-results');
+          if (!resp.success || !resp.data || !resp.data.length) {
+            container.innerHTML = '<div style="color: var(--text-tertiary); font-size: 13px;">暂无修饰记录，点击「修饰简历」生成</div>';
+            return;
+          }
+          var html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+          resp.data.forEach(function(r) {
+            html +=
+              '<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px;">' +
+                '<div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">' + escapeHtml(r.experience_title || '') + ' → ' + escapeHtml(r.target_capability || '') + '</div>' +
+                '<div style="font-size: 13px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">' + escapeHtml(r.reframed_content || '') + '</div>' +
+              '</div>';
+          });
+          html += '</div>';
+          container.innerHTML = html;
+        } catch (e) { console.error('getReframeResults error', e); }
+      });
     }
 
     /* ─── Page init ─── */

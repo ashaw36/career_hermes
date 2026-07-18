@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 
 from src.models.database import AsyncSessionLocal
 from src.models.entities import JobMatch, LearningPath
-from src.services.experience_manager import ExperienceManager
+from src.services.experience_manager import ExperienceManager, TimeConflictError
 from src.services.job_matcher import JobMatcher
 from src.services.learning_recommender import LearningRecommender
 from src.services.persona_engine import PersonaEngine
@@ -77,6 +77,8 @@ class CareerAPI:
         self._persona_eng: Optional[PersonaEngine] = None
         self._job_matcher: Optional[JobMatcher] = None
         self._learner: Optional[LearningRecommender] = None
+        self._job_parser: Optional[Any] = None
+        self._jd_reframe: Optional[Any] = None
 
     @property
     def exp_mgr(self) -> ExperienceManager:
@@ -101,6 +103,20 @@ class CareerAPI:
         if self._learner is None:
             self._learner = LearningRecommender()
         return self._learner
+
+    @property
+    def job_parser(self) -> Any:
+        if self._job_parser is None:
+            from src.services.job_parser import JobParser
+            self._job_parser = JobParser()
+        return self._job_parser
+
+    @property
+    def jd_reframe(self) -> Any:
+        if self._jd_reframe is None:
+            from src.services.jd_reframe_engine import JDReframeEngine
+            self._jd_reframe = JDReframeEngine()
+        return self._jd_reframe
 
     # ─── 经历 ───
 
@@ -149,6 +165,24 @@ class CareerAPI:
             )
             result = AsyncRunner.run(self.exp_mgr.confirm_and_save(draft))
             return {"success": True, "id": str(result.id) if hasattr(result, "id") else ""}
+        except TimeConflictError as e:
+            logger.warning(f"save_experience time conflict: {e}")
+            conflicts = [
+                {
+                    "id": str(c.id),
+                    "title": c.title,
+                    "organization": getattr(c, "organization", ""),
+                    "start_date": str(c.start_date) if c.start_date else "",
+                    "end_date": str(c.end_date) if c.end_date else "至今",
+                }
+                for c in e.conflicts
+            ]
+            return {
+                "success": False,
+                "error_type": "TIME_CONFLICT",
+                "error": str(e),
+                "conflicts": conflicts,
+            }
         except Exception as e:
             logger.error(f"save_experience error: {e}")
             return {"success": False, "error": str(e)}
@@ -212,30 +246,30 @@ class CareerAPI:
 
     # ─── 岗位匹配 ───
 
-    def match_job(self, jd_text: str) -> List[Dict[str, Any]]:
-        """匹配岗位"""
+    def parse_jd(self, jd_text: str) -> Dict[str, Any]:
+        """解析 JD 并保存，返回岗位信息"""
         try:
-            # 先解析并保存 JD
-            from src.services.job_parser import JobParser
-            parser = JobParser()
-            jd = AsyncRunner.run(parser.parse_and_save(jd_text, source="manual"))
-            
-            # 获取默认角色匹配
-            personas = self.get_personas()
-            if not personas:
-                return []
-            
-            persona_id = personas[0].get("id", "")
+            jd = AsyncRunner.run(self.job_parser.parse_and_save(jd_text, source="manual"))
+            return {"success": True, "data": self._job_to_dict(jd)}
+        except Exception as e:
+            logger.error(f"parse_jd error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def match_job(self, job_desc_id: str, persona_id: str) -> Dict[str, Any]:
+        """为指定岗位和角色执行匹配"""
+        try:
             match = AsyncRunner.run(
-                self.job_matcher.match(persona_id=persona_id, job_desc_id=str(jd.id))
+                self.job_matcher.match(persona_id=persona_id, job_desc_id=job_desc_id)
             )
-            return [self._match_to_dict(match)] if match else []
+            if match:
+                return {"success": True, "data": self._match_to_dict(match)}
+            return {"success": False, "error": "匹配未生成结果"}
         except Exception as e:
             logger.error(f"match_job error: {e}")
-            return []
+            return {"success": False, "error": str(e)}
 
     @staticmethod
-    def _match_to_dict(m: Any) -> Dict[str, Any]:
+    def _match_to_dict(m: Any, job_title: str = "", persona_name: str = "") -> Dict[str, Any]:
         breakdown = getattr(m, "score_breakdown", {}) or {}
         return {
             "id": str(m.id) if hasattr(m, "id") else "",
@@ -248,11 +282,129 @@ class CareerAPI:
             "matched_skills": list(getattr(m, "matched_skills", []) or []),
             "missing_skills": list(getattr(m, "missing_skills", []) or []),
             "tracking_status": getattr(m, "tracking_status", "new"),
+            "status": getattr(m, "tracking_status", "new"),
             "notes": getattr(m, "notes", ""),
             "ai_analysis": getattr(m, "ai_analysis", ""),
+            "match_reason": getattr(m, "ai_analysis", "") or getattr(m, "notes", ""),
+            "skill_matches": list(getattr(m, "matched_skills", []) or []),
+            "strengths": [],
+            "job_title": job_title,
+            "persona_name": persona_name,
         }
 
-    # ─── 学习路径 ───
+    def list_jobs(self) -> List[Dict[str, Any]]:
+        """列出所有岗位"""
+        try:
+            jobs = AsyncRunner.run(self.job_parser.list_all(limit=100))
+            return [self._job_to_dict(j) for j in jobs]
+        except Exception as e:
+            logger.error(f"list_jobs error: {e}")
+            return []
+
+    def delete_job(self, job_desc_id: str) -> Dict[str, Any]:
+        """删除岗位及关联的匹配、修饰记录"""
+        try:
+            # 先删除关联的修饰记录和匹配记录
+            personas = self.get_personas()
+            for p in personas:
+                persona_id = p.get("id", "")
+                matches = AsyncRunner.run(
+                    self.job_matcher.list_matches(persona_id)
+                )
+                for m in matches:
+                    if str(getattr(m, "job_desc_id", "")) == job_desc_id:
+                        match_id = str(m.id)
+                        AsyncRunner.run(self.jd_reframe.delete_reframes(match_id))
+                        AsyncRunner.run(self.job_matcher.delete_match(match_id))
+            deleted = AsyncRunner.run(self.job_parser.delete(job_desc_id))
+            return {"success": deleted}
+        except Exception as e:
+            logger.error(f"delete_job error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def get_job_matches(self, job_desc_id: str) -> Dict[str, Any]:
+        """获取某个岗位的所有匹配记录（含关联信息）"""
+        try:
+            matches = AsyncRunner.run(
+                self.job_matcher.list_matches_by_job(job_desc_id)
+            )
+            return {
+                "success": True,
+                "data": [self._match_to_dict(m) for m in matches],
+            }
+        except Exception as e:
+            logger.error(f"get_job_matches error: {e}")
+            return {"success": False, "error": str(e), "data": []}
+
+    def update_match_status(self, match_id: str, status: str) -> Dict[str, Any]:
+        """更新岗位匹配投递状态"""
+        try:
+            result = AsyncRunner.run(
+                self.job_matcher.update_tracking_status(match_id, status)
+            )
+            return {"success": result is not None}
+        except Exception as e:
+            logger.error(f"update_match_status error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def reframe_resume(self, match_id: str) -> Dict[str, Any]:
+        """为某个岗位匹配生成 JD 修饰经历"""
+        try:
+            reframes = AsyncRunner.run(
+                self.jd_reframe.reframe_experiences_for_job(match_id)
+            )
+            return {
+                "success": True,
+                "count": len(reframes),
+                "reframes": [self._reframe_to_dict(r) for r in reframes],
+            }
+        except Exception as e:
+            logger.error(f"reframe_resume error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def get_reframe_results(self, match_id: str) -> Dict[str, Any]:
+        """获取已缓存的修饰结果"""
+        try:
+            reframes = AsyncRunner.run(
+                self.jd_reframe.get_reframed_experiences(match_id)
+            )
+            return {
+                "success": True,
+                "count": len(reframes),
+                "reframes": [self._reframe_to_dict(r) for r in reframes],
+            }
+        except Exception as e:
+            logger.error(f"get_reframe_results error: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def _job_to_dict(j: Any) -> Dict[str, Any]:
+        return {
+            "id": str(j.id) if hasattr(j, "id") else "",
+            "title": getattr(j, "title", "") or "",
+            "company": getattr(j, "company", "") or "",
+            "location": getattr(j, "location", "") or "",
+            "parsed_skills": list(getattr(j, "parsed_skills", []) or []),
+            "responsibilities": list(getattr(j, "responsibilities", []) or []),
+            "raw_text": getattr(j, "raw_text", "") or "",
+            "years_of_experience": getattr(j, "years_of_experience", "") or "",
+            "salary_range": getattr(j, "salary_range", "") or "",
+            "created_at": str(getattr(j, "created_at", "")),
+        }
+
+    @staticmethod
+    def _reframe_to_dict(r: Any) -> Dict[str, Any]:
+        return {
+            "id": str(r.id) if hasattr(r, "id") else "",
+            "job_match_id": str(getattr(r, "job_match_id", "")) or "",
+            "experience_id": str(getattr(r, "experience_id", "")) or "",
+            "original_summary": getattr(r, "original_summary", "") or "",
+            "reframed_summary": getattr(r, "reframed_summary", "") or "",
+            "reframing_strategy": getattr(r, "reframing_strategy", "") or "",
+            "created_at": str(getattr(r, "created_at", "")),
+        }
+
+    # ——— 学习路径 ———
 
     def get_learning_path(self, skill: str) -> List[Dict[str, Any]]:
         """获取学习路径"""
@@ -271,6 +423,82 @@ class CareerAPI:
         except Exception as e:
             logger.error(f"get_learning_path error: {e}")
             return []
+
+    # ——— 经历增删 ———
+
+    def delete_experience(self, exp_id: str) -> Dict[str, Any]:
+        """删除经历（软删除）"""
+        try:
+            AsyncRunner.run(self.exp_mgr.delete(exp_id))
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"delete_experience error: {e}")
+            return {"success": False, "error": str(e)}
+
+    # ——— 角色 CRUD ———
+
+    def get_persona_by_id(self, persona_id: str) -> Optional[Dict[str, Any]]:
+        """获取单个角色"""
+        try:
+            p = AsyncRunner.run(self.persona_eng.get_by_id(persona_id))
+            if p is None:
+                return None
+            return self._persona_to_dict(p)
+        except Exception as e:
+            logger.error(f"get_persona_by_id error: {e}")
+            return None
+
+    def create_persona(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """创建角色"""
+        try:
+            p = AsyncRunner.run(
+                self.persona_eng.create(
+                    name=data.get("name", ""),
+                    identity_statement=data.get("identity_statement", ""),
+                    capability_weights=data.get("capability_weights", {}),
+                    tone_style=data.get("tone_style", "business_insight"),
+                    target_job_profiles=data.get("target_job_profiles", []),
+                    max_experiences=data.get("max_experiences", 5),
+                    user_id=data.get("user_id", "default"),
+                )
+            )
+            return {"success": True, "id": str(p.id), "data": self._persona_to_dict(p)}
+        except Exception as e:
+            logger.error(f"create_persona error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def update_persona(self, persona_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """更新角色"""
+        try:
+            fields: Dict[str, Any] = {}
+            for key in [
+                "name",
+                "identity_statement",
+                "career_narrative",
+                "tone_style",
+                "capability_weights",
+                "target_job_profiles",
+                "max_experiences",
+                "preferred_model",
+            ]:
+                if key in data:
+                    fields[key] = data[key]
+            p = AsyncRunner.run(self.persona_eng.update(persona_id, **fields))
+            if p is None:
+                return {"success": False, "error": f"角色不存在: {persona_id}"}
+            return {"success": True, "id": str(p.id), "data": self._persona_to_dict(p)}
+        except Exception as e:
+            logger.error(f"update_persona error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def delete_persona(self, persona_id: str) -> Dict[str, Any]:
+        """删除角色"""
+        try:
+            AsyncRunner.run(self.persona_eng.delete(persona_id))
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"delete_persona error: {e}")
+            return {"success": False, "error": str(e)}
 
     # ─── 统计 ───
 

@@ -228,6 +228,30 @@ class JobMatch(Base):
         return f"<JobMatch(id={self.id}, score={self.match_score}, status={self.tracking_status})>"
 
 
+class JobMatchExperienceReframe(Base):
+    __tablename__ = "job_match_experience_reframes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    job_match_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("job_matches.id", ondelete="CASCADE"), nullable=False
+    )
+    experience_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("experiences.id", ondelete="CASCADE"), nullable=False
+    )
+    original_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    reframed_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    reframing_strategy: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # 关系
+    job_match: Mapped["JobMatch"] = relationship("JobMatch", backref="experience_reframes")
+
+    def __repr__(self) -> str:
+        return f"<JobMatchExperienceReframe(m={self.job_match_id}, e={self.experience_id})>"
+
+
 class LearningPath(Base):
     __tablename__ = "learning_paths"
 

@@ -179,14 +179,16 @@
 7. 点击"生成简历" → 查看 Markdown 预览 → 导出 PDF
 ```
 
-### 旅程 2：岗位匹配
+### 旅程 2：岗位匹配 + 简历修饰
 ```
 1. 用户切换到目标角色（如 AI PM）
 2. 粘贴一份目标岗位的 JD 文本
 3. 系统解析 JD 并计算与角色的匹配度
 4. 展示匹配的技能和不匹配的技能
 5. 查看 Gap 可视化雷达图
-6. 保存岗位到追踪列表
+6. 点击「✏️ 修饰简历以匹配此岗位」→ 系统自动为每条经历生成 JD 导向版本
+7. 审阅修饰策略说明和修饰后的经历描述，确认后可用于简历生成
+8. 保存岗位到追踪列表
 ```
 
 ### 旅程 3：角色切换
@@ -290,15 +292,27 @@ SkillNode ──自引用（parent_id）
 | source | TEXT | | manual / crawler_boss / crawler_liepin |
 
 **表: `job_matches`**
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | TEXT (UUID) | PK | |
-| persona_id | TEXT | FK | |
-| job_desc_id | TEXT | FK | |
-| match_score | INT | | 0~100 |
-| matched_skills | JSON | | [匹配的技能] |
-| missing_skills | JSON | | [缺失的技能] |
-| created_at | DATETIME | | |
+|| 字段 | 类型 | 约束 | 说明 |
+||------|------|------|------|
+|| id | TEXT (UUID) | PK | |
+|| persona_id | TEXT | FK | |
+|| job_desc_id | TEXT | FK | |
+|| match_score | INT | | 0~100 |
+|| matched_skills | JSON | | [匹配的技能] |
+|| missing_skills | JSON | | [缺失的技能] |
+|| score_breakdown | JSON | | 分项得分报告 |
+|| created_at | DATETIME | | |
+
+**表: `job_match_experience_reframes`** *(Sprint 7-8 新增，JD导向经历修饰)*
+|| 字段 | 类型 | 约束 | 说明 |
+||------|------|------|------|
+|| id | TEXT (UUID) | PK | |
+|| job_match_id | TEXT | FK → job_matches (CASCADE) | 关联岗位匹配 |
+|| experience_id | TEXT | FK → experiences (CASCADE) | 关联原始经历 |
+|| original_summary | TEXT | NOT NULL | 原始经历摘要 |
+|| reframed_summary | TEXT | NOT NULL | 修饰后的摘要 |
+|| reframing_strategy | TEXT | | 修饰策略说明（供用户参考） |
+|| created_at | DATETIME | DEFAULT now | |
 
 **表: `learning_paths`**
 | 字段 | 类型 | 约束 | 说明 |
@@ -364,17 +378,60 @@ class PersonaEngine:
         """重新描述单条经历"""
 ```
 
-### 6.3 JobMatcher
+### 6.3 JobMatcher *(Sprint 7-8 更新: 打分算法升级)*
 ```python
 class JobMatcher:
     async def parse_jd(self, raw_text: str) -> JobDesc:
         """解析JD文本"""
     
     async def calculate_match(self, persona_id: str, job_desc_id: str) -> JobMatch:
-        """计算匹配度"""
+        """计算匹配度，打分策略:
+        - 技能匹配 50分(基础40+等级10)：精通×1.0/熟悉×0.6/了解×0.3/入门×0.1
+        - 经验匹配 25分(年限15+衰减10)：3年内×1.0/3-5年×0.8/5年以上×0.6
+        - 文本相似度 15分：简化TF-IDF+余弦相似度
+        - 其他 10分：地点/年限要求/学历等
+        - 返回 score_breakdown JSON 字段
+        """
+    
+    async def delete_match(self, match_id: str) -> int:
+        """删除岗位匹配记录，联级删除关联的修饰记录"""
     
     async def analyze_gap(self, match_id: str) -> GapAnalysis:
         """生成Gap分析"""
+```
+
+### 6.6 JDReframeEngine *(Sprint 7-8 新增，JD导向经历修饰)*
+```python
+class JDReframeEngine:
+    async def reframe_experiences_for_job(
+        self, match_id: str, force_refresh: bool = False
+    ) -> list[JobMatchExperienceReframe]:
+        """根据岗位JD要求，对角色关联的经历进行针对性修饰重写
+        
+        流程:
+        1. 加载 JobMatch → 获取 persona_id + job_desc_id
+        2. 加载角色经历（按 relevance_score 排序，限制8条）
+        3. 对每条经历构建 JD 导向 Prompt（角色风格 + JD要求 + 原始经历）
+        4. LLM 返回 JSON: reframed_summary + reframing_strategy
+        5. 保存到 job_match_experience_reframes 表
+        6. 支持缓存（force_refresh 可强制刷新）
+        
+        修饰原则:
+        - 保留事实真实性，不编造不存在的事实
+        - 突出与JD要求匹配的技能和经验
+        - 使用更专业、更有影响力的表达方式
+        - 不超过200字
+        - 根据角色 tone_style 调整语气
+        """
+    
+    async def get_reframed_experiences(self, match_id: str) -> list[JobMatchExperienceReframe]:
+        """获取已修饰的经历列表"""
+    
+    async def delete_reframes(self, match_id: str) -> int:
+        """删除指定岗位的所有修饰记录"""
+    
+    def _extract_json(self, text: str) -> dict:
+        """从LLM返回中提取JSON，支持 markdown代码块/直接JSON/正则提取/回退"""
 ```
 
 ### 6.4 ImportParser *(Sprint 7-8 新增)*

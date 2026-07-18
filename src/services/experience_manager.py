@@ -19,6 +19,18 @@ from src.models.database import AsyncSessionLocal
 from src.models.entities import Experience
 
 
+class TimeConflictError(Exception):
+    """经历时间冲突异常。
+
+    属性:
+        conflicts: 与当前经历时间重叠的 Experience 列表
+    """
+
+    def __init__(self, message: str, conflicts: List[Experience]) -> None:
+        super().__init__(message)
+        self.conflicts = conflicts
+
+
 class ExperienceDraft:
     """经历草稿，待用户确认"""
 
@@ -106,8 +118,11 @@ class ExperienceManager:
                 session, user_id, start_date, end_date
             )
             if conflicts:
-                # 警告但不阻止保存
-                print(f"[WARNING] 时间冲突检测: {len(conflicts)} 条重叠经历")
+                conflict_titles = ", ".join([e.title for e in conflicts])
+                raise TimeConflictError(
+                    f"时间冲突: 与已有经历重叠 ({conflict_titles})",
+                    conflicts,
+                )
 
             exp = Experience(
                 user_id=user_id,
@@ -155,7 +170,10 @@ class ExperienceManager:
             return result.scalar_one_or_none()
 
     async def update(self, exp_id: str, **fields: Any) -> Optional[Experience]:
-        """更新经历"""
+        """更新经历。
+
+        若更新了日期字段，自动检测时间冲突。
+        """
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(Experience).where(Experience.id == exp_id)
@@ -167,6 +185,24 @@ class ExperienceManager:
             for key, value in fields.items():
                 if hasattr(exp, key):
                     setattr(exp, key, value)
+
+            # 如果更新了日期，检测冲突
+            new_start = fields.get("start_date", exp.start_date)
+            new_end = fields.get("end_date", exp.end_date)
+            if "start_date" in fields or "end_date" in fields:
+                conflicts = await self._check_time_conflicts(
+                    session,
+                    exp.user_id,
+                    new_start,
+                    new_end,
+                    exclude_id=exp_id,
+                )
+                if conflicts:
+                    conflict_titles = ", ".join([e.title for e in conflicts])
+                    raise TimeConflictError(
+                        f"时间冲突: 与已有经历重叠 ({conflict_titles})",
+                        conflicts,
+                    )
 
             await session.commit()
             await session.refresh(exp)

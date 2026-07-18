@@ -193,3 +193,25 @@
   - ✅ 新增`tests/test_file_import_e2e.py`：6个端到端测试覆盖文件分析全链路(LLM正常返回/markdown代码块/null标题跳过/完整入库/错误处理/大小写后缀)
   - ✅ 测试总数: 80 passed / 0 failed (原74→80)
   - ✅ GitHub 推送: `59a1847` + `b93310c` + `575da02` + `2b4a022` + `be72d7d`
+- **2026-07-19** — **简历生成修复 + JD导向经历修饰 + 岗位删除**：
+  - ❗ `修复` `modern.md.j2`: 模板缺少 `description` 字段渲染，导致经历内容未填充 → 添加 `{% if exp.description %}` 块
+  - ⭐ `新增` `JobMatchExperienceReframe` 模型: `job_match_id` + `experience_id` + `original_summary` + `reframed_summary` + `reframing_strategy` + `created_at`
+  - ⭐ `新增` `src/services/jd_reframe_engine.py`: JDReframeEngine 服务，核心方法 `reframe_experiences_for_job(match_id)`，策略:
+    - 加载角色经历（按 relevance_score 排序，限制8条）
+    - 对每条经历构建 JD 导向 Prompt（含角色风格、JD要求、原始经历）
+    - LLM 返回 JSON `reframed_summary` + `reframing_strategy`
+    - 自动存档到 `job_match_experience_reframes` 表
+    - 支持缓存命中（force_refresh 可强制刷新）
+  - ⭐ `新增` `job_match_page.py` UI: 匹配详情区增加「✏️ 修饰简历以匹配此岗位」按钮 + 修饰结果展示区
+  - ⭐ `新增` 岗位删除功能: JD 列表操作列增加「删除」按钮，删除时联级删除关联的修饰记录和匹配记录
+  - ✅ 新增 `tests/test_jd_reframe_engine.py`: 11个测试覆盖单条修饰/完整流程/缓存命中/强制刷新/获取删除/JSON提取鲁棒性
+  - ✅ 测试总数: 91 passed / 0 failed (原80→91)
+- **2026-07-19 晚间** — **WebView桥接层 + 简历Bug修复 + 岗位匹配增强**
+  - ❯ 修复 `resume_builder.py` 经历为空 Bug：`min_score` 0.15→0.0 + 跨线程 ORM 字段复制避免 detached 状态
+  - ❯ 新增 `parseJD` + `matchJob(job_desc_id, persona_id)` 拆分流程，支持角色选择后匹配
+  - ❯ 新增 `src/ui/webview/api_handler.py` 岗位/匹配/修饰 API：list_jobs、delete_job（级联删除）、get_job_matches、updateMatchStatus、reframeResume、getReframeResults
+  - ❯ 新增 `src/ui/webview/bridge.py` 6个 Qt Slot：parseJD、matchJob、listJobs、deleteJob、getJobMatches、updateMatchStatus、reframeResume、getReframeResults
+  - ❯ `job_matcher.py` 新增 `list_matches_by_job()` 按岗位查询匹配
+  - ❯ HTML原型 `ui-prototype.html` 岗位页完全动态化：JD粘贴区→解析匹配→动态卡片（分数环+删除）→匹配详情（状态更新）→修饰结果展示
+  - ❯ 补齐 `test_resume_builder.py` 集成测试(3个) + `test_bridge.py` 签名适配 + 新增 e2e 测试：test_resume_e2e(2)、test_persona_e2e(2)、test_job_match_e2e(2)
+  - ❯ 测试总数：**109 passed** (原91→109) | 代码量：~5,400 行

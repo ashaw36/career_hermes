@@ -482,6 +482,17 @@ class JobMatcher:
 
             return "\n".join(lines)
 
+    async def list_matches_by_job(self, job_desc_id: str) -> List[JobMatch]:
+        """列出某个岗位的所有匹配记录，按匹配度倒序。"""
+        async with AsyncSessionLocal() as session:
+            stmt = (
+                select(JobMatch)
+                .where(JobMatch.job_desc_id == job_desc_id)
+                .order_by(JobMatch.match_score.desc())
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
     async def list_matches(self, persona_id: str) -> List[JobMatch]:
         """列出角色的所有匹配记录，按匹配度倒序。"""
         async with AsyncSessionLocal() as session:

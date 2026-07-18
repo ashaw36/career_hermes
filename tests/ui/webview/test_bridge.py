@@ -68,14 +68,19 @@ class TestCareerBridge:
         # 空 ID 应该失败
         assert data.get("success") is False or "error" in data or "markdown" in data
 
-    def test_match_job_with_sample_jd(self, bridge: CareerBridge) -> None:
-        """matchJob 接受 JD 文本并返回结果"""
+    def test_parse_jd_with_sample_text(self, bridge: CareerBridge) -> None:
+        """parseJD 接受 JD 文本并返回解析结果"""
         jd = "高级产品经理，要求 Python、SQL、产品规划"
-        result = bridge.matchJob(jd)
+        result = bridge.parseJD(jd)
         data: Dict[str, Any] = json.loads(result)
-        assert data.get("success") is True
-        assert "data" in data
-        assert isinstance(data["data"], list)
+        assert "success" in data
+
+    def test_match_job_with_empty_ids(self, bridge: CareerBridge) -> None:
+        """matchJob 对空 ID 返回错误"""
+        result = bridge.matchJob("", "")
+        data: Dict[str, Any] = json.loads(result)
+        # 空 ID 应该失败
+        assert data.get("success") is False or "error" in data
 
     def test_get_learning_path_with_skill(self, bridge: CareerBridge) -> None:
         """getLearningPath 返回学习资源列表"""

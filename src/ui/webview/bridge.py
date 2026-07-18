@@ -56,7 +56,16 @@ class CareerBridge(QObject):
             logger.error(f"Bridge saveExperience error: {e}")
             return self._err(str(e))
 
-    # ─── 角色 ───
+    @Slot(str, result=str)
+    def deleteExperience(self, exp_id: str) -> str:
+        try:
+            result = self._api.delete_experience(exp_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge deleteExperience error: {e}")
+            return self._err(str(e))
+
+    # ——— 角色 ———
 
     @Slot(result=str)
     def getPersonas(self) -> str:
@@ -65,6 +74,46 @@ class CareerBridge(QObject):
             return self._ok(data)
         except Exception as e:
             logger.error(f"Bridge getPersonas error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def getPersonaById(self, persona_id: str) -> str:
+        try:
+            data = self._api.get_persona_by_id(persona_id)
+            if data is None:
+                return self._err("角色不存在")
+            return self._ok(data)
+        except Exception as e:
+            logger.error(f"Bridge getPersonaById error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def createPersona(self, data_json: str) -> str:
+        try:
+            data: Dict[str, Any] = json.loads(data_json)
+            result = self._api.create_persona(data)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge createPersona error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, str, result=str)
+    def updatePersona(self, persona_id: str, data_json: str) -> str:
+        try:
+            data: Dict[str, Any] = json.loads(data_json)
+            result = self._api.update_persona(persona_id, data)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge updatePersona error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def deletePersona(self, persona_id: str) -> str:
+        try:
+            result = self._api.delete_persona(persona_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge deletePersona error: {e}")
             return self._err(str(e))
 
     # ─── 简历 ───
@@ -81,12 +130,75 @@ class CareerBridge(QObject):
     # ─── 岗位匹配 ───
 
     @Slot(str, result=str)
-    def matchJob(self, jd_text: str) -> str:
+    def parseJD(self, jd_text: str) -> str:
         try:
-            data = self._api.match_job(jd_text)
-            return self._ok(data)
+            result = self._api.parse_jd(jd_text)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge parseJD error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, str, result=str)
+    def matchJob(self, job_desc_id: str, persona_id: str) -> str:
+        try:
+            result = self._api.match_job(job_desc_id, persona_id)
+            return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Bridge matchJob error: {e}")
+            return self._err(str(e))
+
+    @Slot(result=str)
+    def listJobs(self) -> str:
+        try:
+            data = self._api.list_jobs()
+            return self._ok(data)
+        except Exception as e:
+            logger.error(f"Bridge listJobs error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def deleteJob(self, job_desc_id: str) -> str:
+        try:
+            result = self._api.delete_job(job_desc_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge deleteJob error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def getJobMatches(self, job_desc_id: str) -> str:
+        try:
+            result = self._api.get_job_matches(job_desc_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge getJobMatches error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, str, result=str)
+    def updateMatchStatus(self, match_id: str, status: str) -> str:
+        try:
+            result = self._api.update_match_status(match_id, status)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge updateMatchStatus error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def reframeResume(self, match_id: str) -> str:
+        try:
+            result = self._api.reframe_resume(match_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge reframeResume error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def getReframeResults(self, match_id: str) -> str:
+        try:
+            result = self._api.get_reframe_results(match_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge getReframeResults error: {e}")
             return self._err(str(e))
 
     # ─── 学习路径 ───

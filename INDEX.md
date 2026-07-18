@@ -87,9 +87,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/ui/pages/persona_page.py` | 342 | 角色配置页面 |
 | `src/ui/pages/resume_page.py` | 225 | 简历预览页面（支持Markdown+PDF导出） |
 | `src/ui/pages/job_match_page.py` | 316 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新、行点击查看详情） |
-| `src/ui/webview/bridge.py` | 120 | QWebChannel Python桥接（7个API端点） |
+| `src/ui/webview/bridge.py` | 166 | QWebChannel Python桥接（13个API端点：经历/角色/简历/岗位/匹配/修饰/学习/统计） |
 | `src/ui/webview/webview_window.py` | 110 | WebView主窗口（QWebEngineView + DevTools） |
-| `src/ui/webview/api_handler.py` | 230 | 同步API适配层（异步Service → 同步Bridge） |
+| `src/ui/webview/api_handler.py` | 431 | 同步API适配层（异步Service → 同步Bridge） |
 | `src/ui/webview/__init__.py` | 6 | WebView模块导出 |
 | `src/main_webview.py` | 35 | WebView版应用入口 |
 | `src/utils/security.py` | 186 | API Key加密存储（keyring/Fernet） |
@@ -114,9 +114,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `tests/test_pdf_exporter.py` | PDF导出服务测试 |
 | `tests/test_router_mock.py` | LLM Router Mock 模式测试 |
 | `tests/test_import_parser.py` | 经历批量导入解析测试 |
-| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（8个） |
+| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（10个） |
 
-**测试总数：82 个用例，全部通过**
+**测试总数：109 个用例，全部通过**
 
 ## 📁 Git 提交历史
 
@@ -151,6 +151,16 @@ pytest tests/ -v --tb=short
 ```
 
 ## 📝 变更日志
+
+- **2026-07-19** — 岗位匹配增强 + WebView 前端动态化 + e2e测试补齐：
+  - 修复 `resume_builder.py` 经历为空 Bug：`min_score` 从 0.15 降至 0.0，无权重时增加 fallback 逻辑；修复跨线程 ORM 对象 detached 状态引发的隐患
+  - 新增 `parseJD` + `matchJob(job_desc_id, persona_id)` 拆分流程，支持选择角色后匹配
+  - 新增岗位管理 API：`listJobs`、`deleteJob` (级联删除匹配+修饰记录)、`getJobMatches` (按岗位查)、`updateMatchStatus`、`reframeResume`、`getReframeResults`
+  - HTML 原型 `ui-prototype.html` 岗位页完全动态化：JD 粘贴区 → 解析匹配 → 动态岗位卡片 (分数环+ 删除按钮) → 匹配详情面板 (状态更新) → 简历修饰区 (存档关联)
+  - `job_matcher.py` 新增 `list_matches_by_job()` 按岗位查询匹配
+  - 新增 e2e 测试 3 个文件：test_resume_e2e(2)、test_persona_e2e(2)、test_job_match_e2e(2)，覆盖简历生成/角色Fit Score/岗位修饰完整链路
+  - BMAD 文档更新：Sprint7-8_Plan 补录 + 新建 Sprint9-10_Plan
+  - 测试总数：**109 个，全部通过** | 代码量：~5,400 行
 
 - **2026-07-17** — Sprint 7 推进：
   - 新增 `import_parser.py`：支持 Markdown/文本/JSON 三种格式经历批量导入，解决冷启动问题

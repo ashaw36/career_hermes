@@ -30,7 +30,7 @@ class FakeLLM:
                 "type": "work",
                 "organization": "测试科技有限公司",
                 "start_date": "2020-07",
-                "end_date": "2023-06",
+                "end_date": "2021-12",
                 "raw_description": "负责核心产品规划和迭代，主导3个重点项目",
                 "structured_achievements": [
                     "提升DAU 40%，月活突破500万",
@@ -112,7 +112,7 @@ class TestFileImportE2E:
         assert d1.extracted["type"] == "work"
         assert d1.extracted["organization"] == "测试科技有限公司"
         assert d1.extracted["start_date"] == "2020-07-01"  # YYYY-MM 解析
-        assert d1.extracted["end_date"] == "2023-06-01"
+        assert d1.extracted["end_date"] == "2021-12-01"
         assert len(d1.extracted["structured_achievements"]) == 2
         assert "产品规划" in d1.extracted["skills_demonstrated"]
 

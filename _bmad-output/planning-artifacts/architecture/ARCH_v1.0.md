@@ -9,11 +9,12 @@
 | **数据层** | `database.py` | SQLAlchemy 2.0 async engine、session factory、WAL 配置 | 连接字符串 | Session / Engine | 无 |
 | | `models/` | 7 张核心 ORM 表 + 关系定义 | 迁移脚本 | 表结构 | database |
 | | `migrations/` | Alembic 版本控制 | 模型变更 | SQL 迁移文件 | models |
-| **服务层** | `ExperienceManager` | 经历 CRUD、草稿生命周期、时间冲突检测、技能标签提取 | 原始文本 / 字段 / draft_id | Experience 对象、冲突报告 | Database, LLMRouter |
-| | `PersonaEngine` | 角色 CRUD、Fit Score 计算、简历数据组装、经历重述 | persona_id, experience_list | 排序经历 + reframed_text + score 矩阵 | ExperienceManager, LLMRouter, SkillAnalyzer |
-| | `JobMatcher` | JD 解析、匹配度计算、Gap 分析、状态追踪 | JD 文本/URL, persona_id | JobMatch 记录、match%、skill gaps | LLMRouter, SkillAnalyzer, PersonaEngine |
-| | `ResumeBuilder` | Jinja2 模板渲染、Markdown→PDF、对话式调优增量更新 | 筛选后的经历、模板 ID、调优指令 | Markdown, PDF 路径, diff | PersonaEngine, ExperienceManager |
-| | `SkillAnalyzer` | 技能图谱 CRUD、别名标准化、预置节点加载、雷达图数据集 | 原始技能名 / 技能列表 | SkillNode 树、5 维聚合数据、标准名 | Database, LLMRouter(预留) |
+| **服务层** | `ExperienceManager` | 经历 CRUD、草稿生命周期、时间冲突检测、技能标签提取、**批量导入解析** | 原始文本 / 字段 / draft_id / **文件路径** | Experience 对象、冲突报告、**导入记录** | Database, LLMRouter |
+|| `PersonaEngine` | 角色 CRUD、Fit Score 计算、简历数据组装、经历重述 | persona_id, experience_list | 排序经历 + reframed_text + score 矩阵 | ExperienceManager, LLMRouter, SkillAnalyzer |
+|| **`JobMatcher`** | **JD 解析、多维度匹配度计算**（技能匹配×50 + 经验匹配×25 + 文本相似度×15 + 其他×10）、**Gap 分析、状态追踪** | JD 文本/URL, persona_id | JobMatch 记录、match%、skill gaps、**score_breakdown** | LLMRouter, SkillAnalyzer, PersonaEngine |
+|| `ResumeBuilder` | Jinja2 模板渲染、Markdown→PDF、对话式调优增量更新 | 筛选后的经历、模板 ID、调优指令 | Markdown, PDF 路径, diff | PersonaEngine, ExperienceManager |
+|| `SkillAnalyzer` | 技能图谱 CRUD、别名标准化、预置节点加载、雷达图数据集 | 原始技能名 / 技能列表 | SkillNode 树、5 维聚合数据、标准名 | Database, LLMRouter(预留) |
+|| **`ImportParser`** *(S7-8 新增)* | **Markdown/文本/JSON/PDF/Word 导入解析**、**LLM 自动分析非结构化文件** | 原始文本 / 文件内容 | ExperienceDraft 列表 | LLMRouter |
 | | `LLMRouter` | 多模型配置、路由、故障降级、流式输出、Token 追踪 | messages, model_key, stream flag | 文本流/完整文本、latency | httpx, Settings |
 | **表示层** | `MainWindow` | 主窗口、导航栈、全局异常捕获、主题 | 用户操作 | 视图切换、Toast | 所有 View |
 | | `ExperienceView` | 对话录入弹窗、时间线、富文本编辑、冲突高亮 | 经历数据 | 用户确认信号 | ExperienceManager |
@@ -87,10 +88,10 @@ JobMatcher → SkillAnalyzer: normalize_skills(jd_skills)
 SkillAnalyzer --> JobMatcher: 标准技能节点列表
 JobMatcher → PersonaEngine: get_persona_skills(persona_id)
 PersonaEngine --> JobMatcher: 角色当前技能集合
-JobMatcher: 匹配度 = 加权 Jaccard(关键技能命中权重高)
+JobMatcher: **匹配度 = 技能匹配(基础×40 + 等级加成×10) + 经验匹配(年限满足×15 + 时间衰减×10) + 文本相似度(TF-IDF余弦×15) + 其他(学历+地点×10)**
 JobMatcher: Gap = JD要求 - Persona现有技能
-JobMatcher → DB: INSERT job_descs + job_matches
-JobMatcher --> GUI: match_score%, matched[], missing[]
+JobMatcher → DB: INSERT job_descs + job_matches (含 score_breakdown)
+JobMatcher --> GUI: match_score%, matched[], missing[], breakdown{}
 GUI → SkillAnalyzer: get_radar_data(persona_skills, jd_skills, dimensions≥5)
 SkillAnalyzer --> GUI: 雷达图数据集
 GUI: 渲染 PyQtGraph/ECharts 雷达图，展示匹配/缺失列表
@@ -152,8 +153,8 @@ GUI: 渲染 PyQtGraph/ECharts 雷达图，展示匹配/缺失列表
 
 | 方面 | 策略 |
 |------|------|
-| **异步架构** | GUI 主线程保持 60fps；所有服务调用通过 `asyncio.create_task` + Signal 回调返回；数据库 `aiosqlite` 连接池 size=5；HTTP `httpx.AsyncClient` 全局复用连接池 |
-| **缓存策略** | LLM 缓存：prompt+text 的 SHA256 为 key，结果缓存 7 天；重述缓存：`(experience_id + persona_id + prompt_version)` → 缓存；模板缓存：Jinja2 默认编译缓存；技能映射缓存：LRU(1000) |
+| **异步架构** | GUI 主线程保持 60fps；所有服务调用通过 `asyncio.create_task` + Signal 回调返回；数据库 `aiosqlite` 连接池 size=5；HTTP `httpx.AsyncClient` 全局复用连接池 | **Sprint 7-8: qasync 统一事件循环**，主线程直接 `await` 异步服务调用，无需 `QThread` 包装 |
+|| **缓存策略** | LLM 缓存：prompt+text 的 SHA256 为 key，结果缓存 7 天；重述缓存：`(experience_id + persona_id + prompt_version)` → 缓存；模板缓存：Jinja2 默认编译缓存；技能映射缓存：LRU(1000) | 增加 `ImportParser` 缓存：文件分析结果按 `(content_hash + prompt_version)` 缓存 1天 |
 | **大数据量/渲染** | 经历库按年份分页(LIMIT 50)；PDF 生成投递到 `QThreadPool` 或 `asyncio.to_thread`；Playwright browser 懒加载，空闲 5 分钟自动关闭 |
 | **数据库性能** | WAL 模式支持读写并发；`experiences(start_date, end_date)` 联合索引；`skill_nodes(name, aliases)` 索引 |
 

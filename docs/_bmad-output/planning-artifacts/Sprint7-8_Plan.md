@@ -72,17 +72,35 @@
 | 验证简历生成质量 | `src/services/resume_builder.py` | 生成简历结构完整，无模板渲染错误 |
 | 验证岗位匹配合理性 | `src/services/job_matcher.py` | 匹配分数与直觉相符，高匹配确实高 |
 
-#### 7.2 经历批量导入服务
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| 创建导入解析器 | `src/services/import_parser.py` | 支持Markdown/纯文本/JSON三种格式 |
-| 解析工作经历 | `import_parser._parse_work()` | 识别公司、职位、时间段、描述 |
-| 解析项目经历 | `import_parser._parse_project()` | 识别项目名称、技术栈、成果 |
-| 解析教育背景 | `import_parser._parse_education()` | 识别学校、专业、学历、时间 |
-| UI导入按钮 | `experience_page.py` | 新增"批量导入"按钮，支持粘贴/文件选择 |
-| 冲突检测 | `experience_manager.py` | 导入时检测与现有经历的时间重叠 |
+#### 7.2 经历批量导入服务 *(2026-07-18 完成)*
 
-#### 7.3 端到端Bug修复（验证中发现）
+| 任务 | 文件 | 说明 | 状态 |
+|------|------|------|------|
+| 创建导入解析器 | `src/services/import_parser.py` | 支持Markdown/纯文本/JSON三种格式 | ✅ 已完成 |
+| 解析工作经历 | `import_parser._parse_work()` | 识别公司、职位、时间段、描述 | ✅ 已完成 |
+| 解析项目经历 | `import_parser._parse_project()` | 识别项目名称、技术栈、成果 | ✅ 已完成 |
+| 解析教育背景 | `import_parser._parse_education()` | 识别学校、专业、学历、时间 | ✅ 已完成 |
+| **文件导入Tab + LLM分析** | `experience_page.py` | **新增"文件"Tab，支持PDF/Word上传**，LLM自动分析提取经历 | ✅ 已完成 |
+| **上传留痕** | `entities.py` | **新增 `uploaded_files` 模型**，保存文件名、类型、预览、提取数量、状态 | ✅ 已完成 |
+| 冲突检测 | `experience_manager.py` | 导入时检测与现有经历的时间重叠 | 🔷 待实现 |
+
+#### 7.3 岗位匹配打分优化 *(2026-07-18 完成)*
+
+| 任务 | 文件 | 说明 | 状态 |
+|------|------|------|------|
+| **技能等级权重** | `job_matcher.py` | **匹配技能根据`capability_weights`解析等级**（精通×1.0/熟悉×0.6/了解×0.3） | ✅ 已完成 |
+| **经验时间衰减** | `job_matcher.py` | **3年内×1.0，3-5年×0.8，5年以上×0.6**，加权年限替代原始年限 | ✅ 已完成 |
+| **TF-IDF文本相似度** | `job_matcher.py` | **简化TF-IDF+余弦相似度**，简历文本 vs JD描述，15分 | ✅ 已完成 |
+| 分项得分报告 | `job_matcher.py` | `score_breakdown` JSON字段，分项展示技能/经验/文本/其他 | ✅ 已完成 |
+
+#### 7.4 事件循环改造 *(2026-07-18 完成)*
+
+| 任务 | 文件 | 说明 | 状态 |
+|------|------|------|------|
+| **qasync统一事件循环** | `main.py` | **移除`asyncio.run()`+阻塞式`QApplication.exec()`**，改用`qasync.QEventLoop(app)` | ✅ 已完成 |
+
+#### 7.5 端到端Bug修复（验证中发现）
+- [x] 导入对话框中文引号转义导致语法错误（已修复，使用「」替换"" 在 f-string 中）
 - [ ] 待填：根据今晚验证结果记录
 
 ### Sprint 8 — 岗位爬虫 + 体验Polish
@@ -158,3 +176,9 @@
 ## 📝 变更日志
 
 - **2026-07-17** — Sprint 7-8 计划制定：确定"真实闭环"阶段目标，锁定3个决策，拆分14项任务
+- **2026-07-18** — **重大更新：**
+  - ✅ 经历导入增加"文件"Tab，支持PDF/Word上传 + LLM自动分析 + 上传留痕(`uploaded_files`表)
+  - ✅ 岗位匹配打分算法升级：技能等级权重 + 时间衰减加权 + TF-IDF余弦相似度 + 分项报告
+  - ✅ 异步架构改造：qasync统一事件循环，移除QThread混合方案
+  - ✅ 单元测试 74 passed / 0 failed
+  - ✅ GitHub 推送: `9dcea79`

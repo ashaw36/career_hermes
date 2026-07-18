@@ -308,6 +308,18 @@ SkillNode ──自引用（parent_id）
 | target_gap | TEXT | | 目标补充的能力 |
 | items | JSON | | [{resource, status, progress}, ...] |
 
+**表: `uploaded_files`** *(Sprint 7-8 新增)*
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | TEXT (UUID) | PK | |
+| user_id | TEXT | NOT NULL | |
+| filename | TEXT | NOT NULL | 原始文件名 |
+| file_type | TEXT | NOT NULL | Markdown/纯文本/JSON/PDF/Word |
+| content_preview | TEXT | | 前500字符预览 |
+| extracted_count | INT | DEFAULT 0 | LLM成功提取的经历条数 |
+| status | TEXT | DEFAULT 'processed' | processed / failed |
+| created_at | DATETIME | DEFAULT now | |
+
 ### 5.3 索引设计
 - `experiences(user_id, end_date DESC)` — 时间线查询
 - `role_experience_weights(persona_id, relevance_score DESC)` — 角色经历排序
@@ -365,7 +377,23 @@ class JobMatcher:
         """生成Gap分析"""
 ```
 
-### 6.4 LLMRouter
+### 6.4 ImportParser *(Sprint 7-8 新增)*
+```python
+class ImportParser:
+    async def parse_markdown(self, text: str) -> list[ExperienceDraft]:
+        """Markdown格式 → 结构化经历草稿列表"""
+    
+    async def parse_text(self, text: str) -> list[ExperienceDraft]:
+        """纯文本格式 → 结构化经历草稿列表"""
+    
+    async def parse_json(self, text: str) -> list[ExperienceDraft]:
+        """JSON格式 → 结构化经历草稿列表"""
+    
+    async def analyze_file_with_llm(self, content: str, file_type: str) -> list[ExperienceDraft]:
+        """PDF/Word等非结构化文件 → LLM自动分析提取经历"""
+```
+
+### 6.5 LLMRouter
 ```python
 class LLMRouter:
     async def chat(self, messages: list[Message], model: str | None = None, 
@@ -379,23 +407,23 @@ class LLMRouter:
 
 ## 7. 架构与技术栈
 
-### 7.1 运行时架构
+### 7.1 运行时架构 *(Sprint 7-8 更新: qasync统一事件循环)*
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  PySide6 GUI 层 (主线程)                              │
+│  PySide6 GUI 层 (主线程, qasync QEventLoop)              │
 │  ┌───────────────┬───────────────┬───────────────┐   │
 │  │ 对话面板       │ 经历管理器    │ 简历预览器    │   │
 │  └───────────────┴───────────────┴───────────────┘   │
 └───────────────┼───────────────────────────────┘
-               │  Qt Signals / Slots (主线程通信)
+               │  Qt Signals / Slots + asyncio await
 ┌───────────────┴───────────────────────────────┐
-│  服务层 (工作线程 / 异步任务)                        │
+│  服务层 (统一asyncio事件循环, 无需QThread)           │
 │  ┌───────────────┬───────────────┬───────────────┐ │
 │  │ ExperienceManager │ PersonaEngine    │ JobMatcher      │ │
 │  └───────────────┴───────────────┴───────────────┘ │
 │  ┌───────────────┬───────────────┬───────────────┐ │
-│  │ ResumeBuilder     │ SkillAnalyzer    │ LLMRouter       │ │
+│  │ ResumeBuilder     │ ImportParser     │ LLMRouter       │ │
 │  └───────────────┴───────────────┴───────────────┘ │
 └──────────────────┼──────────────────────────────┘
                │  aiosqlite (SQLite 异步驱动)
@@ -415,6 +443,10 @@ class LLMRouter:
 └─────────────────────────────────────────────────────┘
 ```
 
+**事件循环方案演进:**
+- **旧方案 (Sprint 1-6):** `asyncio.run()` 启动异步初始化 → 完成后阻塞式启动 `QApplication.exec()`。GUI内部使用 `QThreadPool` 跑异步任务，通过 `pyqtSignal` 回调。
+- **新方案 (Sprint 7-8):** `qasync.QEventLoop(app)` 统一桥接 Qt 与 asyncio。主线程直接 `await` 异步服务调用，无需 `QThread` 包装。窗口关闭时事件循环自动退出。
+
 ### 7.2 技术栈
 
 | 层级 | 技术 | 说明 |
@@ -423,10 +455,11 @@ class LLMRouter:
 | 异步框架 | asyncio + aiosqlite | 全栈异步，避免 UI 卡顿 |
 | ORM | SQLAlchemy 2.0 (async) | 数据模型定义与查询 |
 | HTTP 客户端 | httpx (async) | LLM API 调用 |
-| 爬虫 | Playwright + stealth | 岗位信息采集 |
-| 简历渲染 | Jinja2 + markdown + pdfkit/weasyprint | 模板渲染与导出 |
-| 配置 | Pydantic Settings | 环境变量 + YAML 文件 |
-| 打包 | PyInstaller | Windows 单 exe 输出 |
+|| 爬虫 | Playwright + stealth | 岗位信息采集 |
+|| 简历渲染 | Jinja2 + markdown + pdfkit/weasyprint | 模板渲染与导出 |
+|| 配置 | Pydantic Settings | 环境变量 + YAML 文件 |
+|| 打包 | PyInstaller | Windows 单 exe 输出 |
+|| **事件循环桥接** | **qasync** | **Sprint 7-8 引入，统一 Qt 与 asyncio** |
 
 ### 7.3 项目目录结构
 

@@ -558,11 +558,16 @@ class ExperiencePage(QWidget):
         try:
             if path.suffix.lower() == ".pdf":
                 try:
-                    import pymupdf
-                    doc = pymupdf.open(filepath)
+                    import fitz  # PyMuPDF 的导入名是 fitz
+                    doc = fitz.open(filepath)
                     content = "\n".join(page.get_text() for page in doc)
+                    doc.close()
                 except ImportError:
-                    QMessageBox.warning(self, "缺少依赖", "PDF 解析需要 PyMuPDF。\n请运行: pip install pymupdf")
+                    QMessageBox.warning(
+                        self, "缺少依赖",
+                        "PDF 解析需要 PyMuPDF。\n"
+                        "请在项目虚拟环境中运行: pip install pymupdf"
+                    )
                     return
             elif path.suffix.lower() == ".docx":
                 try:

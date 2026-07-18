@@ -346,16 +346,22 @@ class ImportParser:
 
     @classmethod
     def _parse_date(cls, value: Any) -> Optional[date]:
-        """解析日期字符串"""
+        """解析日期字符串
+
+        支持格式：YYYY-MM-DD、YYYY-MM、YYYY.MM、YYYY/MM、YYYY年MM月
+        """
         if not value:
             return None
         if isinstance(value, date):
             return value
         if isinstance(value, str):
-            for fmt in ["%Y-%m-%d", "%Y.%m", "%Y/%m", "%Y年%m月"]:
+            for fmt in ["%Y-%m-%d", "%Y-%m", "%Y.%m", "%Y/%m", "%Y年%m月"]:
                 try:
                     if fmt == "%Y-%m-%d":
-                        return date.fromisoformat(value)
+                        # 先尝试完整 ISO 日期；YYYY-MM 不是标准 ISO 日期，会被后续格式捕获
+                        if len(value) == 10:
+                            return date.fromisoformat(value)
+                        continue
                     return datetime.strptime(value, fmt).date()
                 except (ValueError, ImportError):
                     continue

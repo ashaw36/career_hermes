@@ -33,10 +33,13 @@ def main() -> int:
         print("数据库初始化完成")
         window = MainWindow()
         window.show()
+        # 等待应用程序退出信号，保持事件循环运行
+        future = asyncio.Future()
+        app.aboutToQuit.connect(future.set_result)
+        await future
 
     with loop:
         loop.run_until_complete(async_main())
-        # QEventLoop 与 Qt 事件循环桥接，窗口关闭时自动退出
         return 0
 
 

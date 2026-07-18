@@ -182,3 +182,14 @@
   - ✅ 异步架构改造：qasync统一事件循环，移除QThread混合方案
   - ✅ 单元测试 74 passed / 0 failed
   - ✅ GitHub 推送: `9dcea79`
+- **2026-07-18 晚间** — **Bug修复与测试完善：**
+  - 🔧 `严重` `main.py`: `aboutToQuit`信号为无参数信号，`future.set_result`缺参报错导致应用闪退 → 用`lambda: future.set_result(None)`包装
+  - 🔧 `严重` `experience_page.py`: 文件后缀判断使用`endswith`大小写敏感 → Windows上`.PDF`/`.Docx`被误判为文本 → 改用`path.suffix.lower()`
+  - 🔧 `中等` `experience_page.py`: PyMuPDF导入名错误(`import pymupdf`) → 正确为`import fitz`
+  - 🔧 `中等` `import_parser.py`: JSON提取正则贪婪匹配可能跨数组、换行被替换破坏JSON → 改用非贪婪`'.*?]'`并保留换行
+  - 🔧 `中等` `import_parser.py`: LLM返回`"title": null`时`item.get("title", "")`返回`None`而非`""` → 改用`item.get("title") or ""`并显式跳过无标题条目
+  - 🔧 `中等` `import_parser.py`: 日期解析遗漏`YYYY-MM`格式(LLM常见输出) → 添加`"%Y-%m"`格式支持
+  - 🔧 `轻微` `experience_page.py`: 文件分析失败时错误信息过于笼统("文件分析失败"五字) → 根据异常类型给出具体提示(LLM解析失败/缺少依赖/其他错误)
+  - ✅ 新增`tests/test_file_import_e2e.py`：6个端到端测试覆盖文件分析全链路(LLM正常返回/markdown代码块/null标题跳过/完整入库/错误处理/大小写后缀)
+  - ✅ 测试总数: 80 passed / 0 failed (原74→80)
+  - ✅ GitHub 推送: `59a1847` + `b93310c` + `575da02` + `2b4a022` + `be72d7d`

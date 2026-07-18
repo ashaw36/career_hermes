@@ -390,7 +390,21 @@ class ImportParser:
         """JSON格式 → 结构化经历草稿列表"""
     
     async def analyze_file_with_llm(self, content: str, file_type: str) -> list[ExperienceDraft]:
-        """PDF/Word等非结构化文件 → LLM自动分析提取经历"""
+        """PDF/Word等非结构化文件 → LLM自动分析提取经历
+        
+        鲁棒性处理:
+        - LLM返回可能包含 markdown 代码块(\`\`\`json) → 自动提取 JSON 部分
+        - 正则提取使用非贪婪匹配(\[.*?\]) 避免跨数组
+        - 保留原始换行字符，不替换为空格
+        - 对 LLM返回的每个条目进行校验: title 为 None/空 时跳过
+        - 支持中英文字段名(title/标题, organization/公司, skills/技能等)
+        
+        日期解析支持格式:
+        - YYYY-MM-DD, YYYY-MM, YYYY.MM, YYYY/MM, YYYY年MM月
+        """
+    
+    class ImportParserError(Exception):
+        """解析失败时抛出，包含具体错误信息"""
 ```
 
 ### 6.5 LLMRouter

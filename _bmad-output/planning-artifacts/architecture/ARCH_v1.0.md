@@ -133,8 +133,9 @@ GUI: 渲染 PyQtGraph/ECharts 雷达图，展示匹配/缺失列表
 
 | 层级 | 策略 | 实现细节 |
 |------|------|----------|
-| **GUI 层** | 全局免底 + 异步信号 | `sys.excepthook` 捕获未处理异常 → 写日志 + `QMessageBox.critical`；所有 `async` 任务通过 `pyqtSignal` 返回 `(result, error)` 元组，禁止后台异常直接崩溃主循环 |
-| **服务层** | 自定义异常树 + 降级 | 基类 `CareerCraftError`，子类：`ValidationError`(400)、`LLMError`(503)、`ScraperError`(502)、`DatabaseError`(500)、`RenderError`(500) |
+|| **GUI 层** | 全局免底 + 异步信号 | `sys.excepthook` 捕获未处理异常 → 写日志 + `QMessageBox.critical`；所有 `async` 任务通过 `pyqtSignal` 返回 `(result, error)` 元组，禁止后台异常直接崩溃主循环 |
+|| **文件导入层** | 多层次错误处理 + 用户友好提示 | PDF/Word解析失败(`ImportError`) → 显示具体安装命令；LLM解析失败(`ImportParserError`) → 显示"内容格式异常或网络问题"；文件后缀大小写不敏感 → `path.suffix.lower()`统一处理；无效条目自动跳过，不阻断整体导入 |
+|| **服务层** | 自定义异常树 + 降级 | 基类 `CareerCraftError`，子类：`ValidationError`(400)、`LLMError`(503)、`ScraperError`(502)、`DatabaseError`(500)、`RenderError`(500)、**`ImportParserError`(解析失败)** |
 | **LLMRouter** | 指数退避重试 + 多供应商降级 | 单模型失败重试 3 次(backoff: 1s, 2s, 4s)；主模型超时 → 自动切 Fallback；最终失败返回 `LLM_ALL_FAILED` |
 | **爬虫层** | 超时隔离 + 手动降级 | Playwright 页面超时 10s，浏览器 context 级隔离，抓取失败时提示用户粘贴文本 |
 | **数据层** | 事务回滚 + WAL 恢复 | SQLAlchemy `begin()` 包裹写入，异常自动 `rollback`；SQLite 启用 WAL 模式 |

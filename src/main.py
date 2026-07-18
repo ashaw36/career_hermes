@@ -35,7 +35,8 @@ def main() -> int:
         window.show()
         # 等待应用程序退出信号，保持事件循环运行
         future = asyncio.Future()
-        app.aboutToQuit.connect(future.set_result)
+        # aboutToQuit 是无参数信号，必须用 lambda 包裵，否则会因缺少参数传入导致 TypeError
+        app.aboutToQuit.connect(lambda: future.set_result(None))
         await future
 
     with loop:

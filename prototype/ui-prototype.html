@@ -681,31 +681,7 @@
       flex-wrap: wrap;
     }
 
-    .skill-radar-section {
-      margin-bottom: 14px;
-      padding: 14px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-    }
 
-    .skill-radar-chart {
-      width: 100%;
-      height: 320px;
-      margin-top: 8px;
-    }
-
-    .skill-radar-empty {
-      height: 160px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-tertiary);
-      font-size: 13px;
-      margin-top: 8px;
-    }
-
-    /* ─── Dashboard Stats ─── */
     .stats-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -1931,7 +1907,6 @@
     var gJobs = [];
     var gCurrentMatchId = null;
     var gCurrentJobId = null;
-    var gSkillRadarChart = null;
 
     function loadPersonasForJobs() {
       if (!window.pybridge) return;
@@ -2069,7 +2044,6 @@
 
           if (!matches.length) {
             content.innerHTML = '<div style="color: var(--text-tertiary);">暂无匹配记录</div>';
-            disposeSkillRadar();
             return;
           }
           var m = matches[0];
@@ -2105,8 +2079,6 @@
               '<button class="btn btn-primary btn-sm" onclick="updateMatchStatus()">更新状态</button>' +
             '</div>';
 
-          initSkillGapRadar(m);
-
           // 自动加载已有修饰结果
           loadReframeResults(m.id);
         } catch (e) { console.error('getJobMatches error', e); }
@@ -2117,146 +2089,6 @@
       document.getElementById('match-detail-panel').style.display = 'none';
       gCurrentMatchId = null;
       gCurrentJobId = null;
-      disposeSkillRadar();
-    }
-
-    function normalizeSkillItem(item) {
-      if (item == null) return '';
-      if (typeof item === 'string') return item.trim();
-      if (typeof item === 'object') {
-        return String(item.name || item.skill || item.skill_name || item.title || item.label || '').trim();
-      }
-      return String(item).trim();
-    }
-
-    function normalizeSkillList(list) {
-      if (!list) return [];
-      if (typeof list === 'string') {
-        var trimmed = list.trim();
-        if (!trimmed) return [];
-        if (trimmed.charAt(0) === '[' || trimmed.charAt(0) === '{') {
-          try {
-            return normalizeSkillList(JSON.parse(trimmed));
-          } catch (e) {
-            // Fall through to separator parsing for non-JSON text.
-          }
-        }
-        return list.split(/[,，;；\n]/).map(normalizeSkillItem).filter(Boolean);
-      }
-      if (typeof list === 'object' && !Array.isArray(list)) {
-        return normalizeSkillList(list.skills || list.items || list.values || []);
-      }
-      if (!Array.isArray(list)) return [];
-      return list.map(normalizeSkillItem).filter(Boolean);
-    }
-
-    function buildSkillRadarData(matchResult) {
-      var requiredSkills = normalizeSkillList(matchResult.required_skills);
-      var gapSkills = normalizeSkillList(matchResult.skill_gaps);
-      var matchedSkills = normalizeSkillList(matchResult.skill_matches);
-      var skillMap = {};
-      var skills = [];
-
-      requiredSkills.concat(gapSkills).concat(matchedSkills).forEach(function(skill) {
-        var key = skill.toLowerCase();
-        if (!skillMap[key]) {
-          skillMap[key] = true;
-          skills.push(skill);
-        }
-      });
-
-      if (!skills.length) return null;
-
-      var gapMap = {};
-      gapSkills.forEach(function(skill) {
-        gapMap[skill.toLowerCase()] = true;
-      });
-
-      return {
-        indicators: skills.map(function(skill) {
-          return { name: skill, max: 10 };
-        }),
-        currentValues: skills.map(function(skill) {
-          return gapMap[skill.toLowerCase()] ? 3 : 8;
-        }),
-        requiredValues: skills.map(function() {
-          return 8;
-        })
-      };
-    }
-
-    function disposeSkillRadar() {
-      if (gSkillRadarChart) {
-        gSkillRadarChart.dispose();
-        gSkillRadarChart = null;
-      }
-    }
-
-    function initSkillGapRadar(matchResult) {
-      var container = document.getElementById('skill-radar-container');
-      if (!container) return;
-      disposeSkillRadar();
-
-      var radarData = buildSkillRadarData(matchResult || {});
-      if (!radarData) {
-        container.innerHTML = '<div class="skill-radar-empty">暂无技能分析数据</div>';
-        return;
-      }
-
-      if (typeof echarts === 'undefined') {
-        container.innerHTML = '<div class="skill-radar-empty">暂无技能分析数据</div>';
-        return;
-      }
-
-      container.innerHTML = '<div id="skill-radar-chart" class="skill-radar-chart"></div>';
-      var chartEl = document.getElementById('skill-radar-chart');
-      gSkillRadarChart = echarts.init(chartEl, null, { renderer: 'canvas' });
-      gSkillRadarChart.setOption({
-        backgroundColor: 'transparent',
-        color: ['#5e6ad2', '#8a8f98'],
-        tooltip: { trigger: 'item' },
-        legend: {
-          data: ['角色能力', '岗位要求'],
-          bottom: 0,
-          textStyle: { color: '#d0d6e0', fontSize: 12 },
-          itemWidth: 16,
-          itemHeight: 8
-        },
-        radar: {
-          center: ['50%', '46%'],
-          radius: '66%',
-          indicator: radarData.indicators,
-          splitNumber: 4,
-          axisName: { color: '#d0d6e0', fontSize: 12 },
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.12)' } },
-          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-          splitArea: { areaStyle: { color: ['rgba(255,255,255,0.015)', 'rgba(255,255,255,0.03)'] } }
-        },
-        series: [{
-          type: 'radar',
-          symbol: 'circle',
-          symbolSize: 4,
-          data: [
-            {
-              name: '角色能力',
-              value: radarData.currentValues,
-              lineStyle: { color: '#5e6ad2', width: 2 },
-              itemStyle: { color: '#5e6ad2' },
-              areaStyle: { color: 'rgba(94,106,210,0.18)' }
-            },
-            {
-              name: '岗位要求',
-              value: radarData.requiredValues,
-              lineStyle: { color: '#8a8f98', width: 2, type: 'dashed' },
-              itemStyle: { color: '#8a8f98' },
-              areaStyle: { color: 'rgba(138,143,152,0.06)' }
-            }
-          ]
-        }]
-      });
-      setTimeout(function() {
-        if (gSkillRadarChart) gSkillRadarChart.resize();
-      }, 0);
     }
 
     function deleteJob(jobId) {

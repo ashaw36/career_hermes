@@ -86,23 +86,16 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || `src/crawlers/base.py` | 180+ | 爬虫基类（Playwright封装+UA轮换+Cookie复用+Stealth） |
 | `src/crawlers/boss_zhipin.py` | 141 | Boss直聘爬虫 |
 | `src/crawlers/jd_crawler.py` | 80 | JD爬虫存根（Mock模式） |
-| `src/ui/main_window.py` | 243 | PySide6主窗口（六页面导航） |
-| `src/ui/pages/experience_page.py` | 311 | 经历管理页面 |
-| `src/ui/pages/persona_page.py` | 342 | 角色配置页面 |
-| `src/ui/pages/resume_page.py` | 225 | 简历预览页面（支持Markdown+PDF导出） |
-|| `src/ui/pages/job_match_page.py` | 316 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新、行点击查看详情） |
-|| `src/ui/webview/bridge.py` | 231 | QWebChannel Python桥接（18个API端点：经历/角色/简历/岗位/匹配/修饰/学习/统计） |
-|| `src/ui/webview/webview_window.py` | 110 | WebView主窗口（QWebEngineView + DevTools） |
-|| `src/ui/webview/api_handler.py` | 541 | 同步API适配层（异步Service → 同步Bridge） |
-| `src/ui/webview/__init__.py` | 6 | WebView模块导出 |
-| `src/main_webview.py` | 35 | WebView版应用入口 |
-| `src/utils/security.py` | 186 | API Key加密存储（keyring/Fernet） |
-| `src/main.py` | 41 | 原生PySide6应用入口 |
-| `build.py` | 71 | PyInstaller 打包脚本 |
-| `prototype/ui-prototype.html` | 1,200 | Linear深色风格HTML原型（6页面 + JS桥接） |
-| `prototype/qwebchannel.js` | 456 | Qt WebChannel JS库 |
+||| `src/ui/webview/bridge.py` | 280 | QWebChannel Python桥接（23个API端点） |
+||| `src/ui/webview/webview_window.py` | 110 | WebView主窗口（QWebEngineView + DevTools） |
+||| `src/ui/webview/api_handler.py` | 610 | 同步API适配层（异步Service → 同步Bridge） |
+|| `src/ui/webview/__init__.py` | 6 | WebView模块导出 |
+|| `src/main_webview.py` | 35 | 应用入口（WebView） |
+|| `src/utils/security.py` | 186 | API Key加密存储（keyring/Fernet） |
+|| `prototype/ui-prototype.html` | 1,600 | Linear深色风格HTML原型（8页面 + JS桥接） |
+|| `prototype/qwebchannel.js` | 456 | Qt WebChannel JS库 |
 
-**总代码量：~5,200 行（不含测试）**
+|**总代码量：~4,300 行（不含测试）**
 
 ### 测试 `tests/`
 | 路径 | 说明 |
@@ -118,12 +111,12 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `tests/test_pdf_exporter.py` | PDF导出服务测试 |
 | `tests/test_router_mock.py` | LLM Router Mock 模式测试 |
 | `tests/test_import_parser.py` | 经历批量导入解析测试 |
-|| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（10个） |
-|| `tests/test_skill_graph.py` | 技能图谱管理测试 |
+|| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（17个） |
+||| `tests/test_skill_graph.py` | 技能图谱管理测试 |
 
-**测试总数：126 个用例，全部通过**
+|**测试总数：131 个用例，全部通过**
 
-**总代码量：~5,800 行（不含测试）**
+|**总代码量：~4,300 行 Python + ~2,000 行 HTML/JS（不含测试）**
 
 | Commit | 说明 |
 |--------|------|
@@ -153,7 +146,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 ```bash
 cd /mnt/d/workplace_for_hermes/career-agent
 source .venv/bin/activate
-python -m src.main
+python -m src.main_webview
 ```
 
 运行测试：
@@ -162,6 +155,12 @@ pytest tests/ -v --tb=short
 ```
 
 ## 📝 变更日志
+
+- **2026-07-19** — **删除原生 PySide6 GUI，只保留 WebView**：
+  - 删除文件：`src/main.py` (41行)、`src/ui/main_window.py` (243行)、`src/ui/pages/*` (共2,108行)
+  - 原因：WebView 已完全覆盖 P0+P1 全部功能，原生 GUI 缺 P1 功能且维护成本高
+  - 唯一入口：`python -m src.main_webview`
+  - 测试：**131 个，全部通过** | Python 代码量: ~4,300 行
 
 - **2026-07-19** — **前端 P0/P1 缺失功能补齐**（由 Codex 执行）：
   - 原状：后端+Bridge 126 测试通过，但 HTML 前端 7 处仅 UI 占位未接入 pybridge

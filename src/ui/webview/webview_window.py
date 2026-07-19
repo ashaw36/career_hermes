@@ -7,9 +7,12 @@ PySide6 QWebEngineView 容器，加载本地 HTML 原型，
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import QUrl
 from PySide6.QtWebChannel import QWebChannel
@@ -41,13 +44,13 @@ class CareerWebWindow(QMainWindow):
         self.setCentralWidget(self.web_view)
 
         # 配置 WebEngine 设置
+        # 配置 WebEngine 设置
         settings = self.web_view.settings()
         try:
             settings.setAttribute(
                 QWebEngineSettings.WebAttribute.DeveloperExtrasEnabled, True
             )
         except (AttributeError, TypeError):
-            # 打包后可能不支持 DevTools
             pass
         settings.setAttribute(
             QWebEngineSettings.WebAttribute.LocalStorageEnabled, True
@@ -55,12 +58,21 @@ class CareerWebWindow(QMainWindow):
         settings.setAttribute(
             QWebEngineSettings.WebAttribute.JavascriptEnabled, True
         )
+        settings.setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True
+        )
+        settings.setAttribute(
+            QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True
+        )
 
         # 创建并注册 QWebChannel + Bridge
         self.bridge = CareerBridge(self)
         self.channel = QWebChannel(self.web_view.page())
         self.channel.registerObject("pybridge", self.bridge)
         self.web_view.page().setWebChannel(self.channel)
+
+        # 页面加载完成后注入 qwebchannel.js 并初始化 bridge
+        self.web_view.loadFinished.connect(self._on_page_loaded)
 
         # 加载本地 HTML 原型
         html_path = self._resolve_html_path()
@@ -91,6 +103,35 @@ class CareerWebWindow(QMainWindow):
                 return str(path)
         # Fallback to first candidate (let WebEngine report the error)
         return str(candidates[0])
+
+    def _get_qwebchannel_js(self) -> str:
+        """Read qwebchannel.js content from bundled or source location."""
+        candidates: List[Path] = []
+        bundle_root = getattr(sys, "_MEIPASS", None)
+        if bundle_root:
+            candidates.append(Path(bundle_root) / "prototype" / "qwebchannel.js")
+        source_root = Path(__file__).resolve().parents[3]
+        candidates.extend([
+            source_root / "prototype" / "qwebchannel.js",
+            Path.cwd() / "prototype" / "qwebchannel.js",
+        ])
+        for path in candidates:
+            if path.is_file():
+                return path.read_text(encoding="utf-8")
+        return ""
+
+    def _on_page_loaded(self, ok: bool) -> None:
+        """Inject qwebchannel.js and initialize bridge after page load."""
+        if not ok:
+            logger.warning("Page load failed")
+            return
+        js_code = self._get_qwebchannel_js()
+        if js_code:
+            self.web_view.page().runJavaScript(js_code)
+            self.web_view.page().runJavaScript("initBridge();")
+            logger.info("QWebChannel injected and bridge initialized")
+        else:
+            logger.error("qwebchannel.js not found")
 
     def keyPressEvent(self, event) -> None:
         """F12 打开 DevTools"""

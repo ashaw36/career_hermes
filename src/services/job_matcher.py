@@ -22,6 +22,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.models.database import AsyncSessionLocal
 from src.models.entities import Experience, JobDesc, JobMatch, Persona
@@ -446,39 +447,39 @@ class JobMatcher:
                 return f"未找到匹配记录: {match_id}"
 
             lines = [
-                f"## 岗位匹配报告",
-                f"",
+                "## 岗位匹配报告",
+                "",
                 f"- 匹配 ID: {match.id}",
                 f"- 角色 ID: {match.persona_id}",
                 f"- 岗位 ID: {match.job_desc_id}",
                 f"- **综合匹配度: {match.match_score}/100**",
-                f"",
-                f"### 分项得分",
+                "",
+                "### 分项得分",
                 f"- 技能匹配: {match.score_breakdown.get('skill', 0)} / 50",
                 f"- 经验匹配: {match.score_breakdown.get('experience', 0)} / 25",
                 f"- 文本相似度: {match.score_breakdown.get('text_similarity', 0)} / 15",
                 f"- 其他匹配: {match.score_breakdown.get('other', 0)} / 10",
-                f"",
+                "",
                 f"### 匹配技能 ({len(match.matched_skills or [])} 个)",
             ]
             for skill in match.matched_skills or []:
                 lines.append(f"- ✅ {skill}")
 
             lines.extend([
-                f"",
+                "",
                 f"### 缺失技能 ({len(match.missing_skills or [])} 个)",
             ])
             for skill in match.missing_skills or []:
                 lines.append(f"- ❌ {skill}")
 
             lines.extend([
-                f"",
-                f"### 投递状态",
+                "",
+                "### 投递状态",
                 f"{match.tracking_status}",
             ])
 
             if match.ai_analysis:
-                lines.extend([f"", f"### AI 分析", f"{match.ai_analysis}"])
+                lines.extend(["", "### AI 分析", f"{match.ai_analysis}"])
 
             return "\n".join(lines)
 
@@ -487,6 +488,7 @@ class JobMatcher:
         async with AsyncSessionLocal() as session:
             stmt = (
                 select(JobMatch)
+                .options(selectinload(JobMatch.persona), selectinload(JobMatch.job_desc))
                 .where(JobMatch.job_desc_id == job_desc_id)
                 .order_by(JobMatch.match_score.desc())
             )

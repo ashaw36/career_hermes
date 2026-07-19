@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -47,7 +47,7 @@ class ExperiencePage(QWidget):
         self.manager = ExperienceManager()
         self._current_exp_id: Optional[str] = None
         self._experiences: List[Experience] = []
-        self._async_tasks: set[Any] = set()
+        self._async_tasks: Set[Any] = set()
 
         self._init_ui()
         self._load_data()
@@ -290,12 +290,12 @@ class ExperiencePage(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        async def delete_and_reload() -> tuple[bool, List[Experience]]:
+        async def delete_and_reload() -> Tuple[bool, List[Experience]]:
             ok = await self.manager.delete(exp_id)
             exps = await self.manager.list_by_user(status_filter="confirmed")
             return ok, exps
 
-        def on_success(result: tuple[bool, List[Experience]]) -> None:
+        def on_success(result: Tuple[bool, List[Experience]]) -> None:
             ok, exps = result
             if ok:
                 self._populate_experiences(exps)
@@ -340,7 +340,7 @@ class ExperiencePage(QWidget):
         }
 
         try:
-            async def save_and_reload() -> tuple[str, str, List[Experience]]:
+            async def save_and_reload() -> Tuple[str, str, List[Experience]]:
                 action = "updated"
                 if self._current_exp_id:
                     exp = await self.manager.update(self._current_exp_id, **data)
@@ -366,7 +366,7 @@ class ExperiencePage(QWidget):
                 exps = await self.manager.list_by_user(status_filter="confirmed")
                 return action, exp.id, exps
 
-            def on_success(result: tuple[str, str, List[Experience]]) -> None:
+            def on_success(result: Tuple[str, str, List[Experience]]) -> None:
                 action, exp_id, exps = result
                 self._current_exp_id = exp_id
                 self._populate_experiences(exps, selected_id=exp_id)
@@ -501,7 +501,7 @@ class ExperiencePage(QWidget):
             parser_method = ImportParser().parse_text
 
         try:
-            async def import_and_reload() -> tuple[int, int, List[Experience]]:
+            async def import_and_reload() -> Tuple[int, int, List[Experience]]:
                 drafts = await parser_method(text)
                 if not drafts:
                     return 0, 0, await self.manager.list_by_user(status_filter="confirmed")
@@ -517,7 +517,7 @@ class ExperiencePage(QWidget):
                 exps = await self.manager.list_by_user(status_filter="confirmed")
                 return success, len(drafts), exps
 
-            def on_success(result: tuple[int, int, List[Experience]]) -> None:
+            def on_success(result: Tuple[int, int, List[Experience]]) -> None:
                 success, total, exps = result
                 if total == 0:
                     QMessageBox.information(self, "无数据", "未能解析出有效的经历，请检查格式。")
@@ -595,7 +595,7 @@ class ExperiencePage(QWidget):
         }
         file_type = file_type_map.get(path.suffix.lower(), "未知")
 
-        async def analyze_and_import() -> tuple[int, int, List[Experience]]:
+        async def analyze_and_import() -> Tuple[int, int, List[Experience]]:
             parser = ImportParser()
             drafts = await parser.analyze_file_with_llm(content, file_type=f"{file_type}文件")
 
@@ -625,7 +625,7 @@ class ExperiencePage(QWidget):
 
             return success, len(drafts), exps
 
-        def on_success(result: tuple[int, int, List[Experience]]) -> None:
+        def on_success(result: Tuple[int, int, List[Experience]]) -> None:
             success, total, exps = result
             self._populate_experiences(exps)
             if success > 0:

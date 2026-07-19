@@ -247,6 +247,7 @@ class JobMatchExperienceReframe(Base):
 
     # 关系
     job_match: Mapped["JobMatch"] = relationship("JobMatch", backref="experience_reframes")
+    experience: Mapped["Experience"] = relationship("Experience")
 
     def __repr__(self) -> str:
         return f"<JobMatchExperienceReframe(m={self.job_match_id}, e={self.experience_id})>"

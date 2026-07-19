@@ -8,12 +8,11 @@ CareerCraft Agent — 对话引擎
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from src.llm.router import LLMRouter
 from src.services.experience_manager import ExperienceManager
 from src.services.persona_engine import PersonaEngine
-from src.services.resume_builder import ResumeBuilder
 
 
 class ConversationAction:

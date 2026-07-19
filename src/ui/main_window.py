@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 import traceback
-from typing import List, Optional
+from typing import List
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (

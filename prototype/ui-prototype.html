@@ -1873,12 +1873,13 @@
         try {
           var resp = JSON.parse(result);
           var container = document.getElementById('reframe-results');
-          if (!resp.success || !resp.data || !resp.data.length) {
+          var reframes = resp.reframes || resp.data || [];
+          if (!resp.success || !reframes.length) {
             container.innerHTML = '<div style="color: var(--text-tertiary); font-size: 13px;">暂无修饰记录，点击「修饰简历」生成</div>';
             return;
           }
           var html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
-          resp.data.forEach(function(r) {
+          reframes.forEach(function(r) {
             html +=
               '<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px;">' +
                 '<div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">' + escapeHtml(r.experience_title || '') + ' → ' + escapeHtml(r.target_capability || '') + '</div>' +

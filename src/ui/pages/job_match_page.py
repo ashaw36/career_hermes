@@ -8,14 +8,13 @@ Sprint 6 GUI 扩展。
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional, Set, Tuple
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
@@ -55,7 +54,7 @@ class JobMatchPage(QWidget):
         self._personas: List[Any] = []
         self._current_job_id: Optional[str] = None
         self._current_match_id: Optional[str] = None
-        self._async_tasks: set[Any] = set()
+        self._async_tasks: Set[Any] = set()
         self._init_ui()
         self._load_personas()
 
@@ -238,7 +237,7 @@ class JobMatchPage(QWidget):
             QMessageBox.warning(self, "警告", "请先选择一个角色")
             return
 
-        async def parse_match_and_reload() -> tuple[str, Any, List[Any]]:
+        async def parse_match_and_reload() -> Tuple[str, Any, List[Any]]:
             # 1. 解析 JD
             job_desc = await self._job_parser.parse_and_save(raw_text, source="manual")
             # 2. 匹配
@@ -246,7 +245,7 @@ class JobMatchPage(QWidget):
             jobs = await self._job_parser.list_all(limit=50)
             return job_desc.id, match, jobs
 
-        def on_success(result: tuple[str, Any, List[Any]]) -> None:
+        def on_success(result: Tuple[str, Any, List[Any]]) -> None:
             job_id, match, jobs = result
             self._current_job_id = job_id
             self._display_match(match)
@@ -313,22 +312,22 @@ class JobMatchPage(QWidget):
         )
 
         lines = [
-            f"### 匹配分项",
+            "### 匹配分项",
             f"- 技能匹配: {match.score_breakdown.get('skill', 0)} / 50",
             f"- 经验匹配: {match.score_breakdown.get('experience', 0)} / 25",
             f"- 文本相似度: {match.score_breakdown.get('text_similarity', 0)} / 15",
             f"- 其他匹配: {match.score_breakdown.get('other', 0)} / 10",
-            f"",
+            "",
             f"### 匹配技能 ({len(match.matched_skills or [])} 个)",
         ]
         for skill in match.matched_skills or []:
             lines.append(f"✅ {skill}")
 
-        lines.extend([f"", f"### 缺失技能 ({len(match.missing_skills or [])} 个)"])
+        lines.extend(["", f"### 缺失技能 ({len(match.missing_skills or [])} 个)"])
         for skill in match.missing_skills or []:
             lines.append(f"❌ {skill}")
 
-        lines.extend([f"", f"### 投递状态", f"{match.tracking_status}"])
+        lines.extend(["", "### 投递状态", f"{match.tracking_status}"])
 
         self._match_detail.setText("\n".join(lines))
         self._status_combo.setCurrentText(match.tracking_status)

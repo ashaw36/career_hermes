@@ -7,7 +7,7 @@ CareerCraft Agent — 角色配置页面
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -81,7 +81,7 @@ class PersonaPage(QWidget):
         self._current_persona_id: Optional[str] = None
         self._personas: List[Persona] = []
         self._weight_items: List[CapabilityWeightItem] = []
-        self._async_tasks: set[Any] = set()
+        self._async_tasks: Set[Any] = set()
 
         self._init_ui()
         self._load_data()
@@ -324,12 +324,12 @@ class PersonaPage(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        async def delete_and_reload() -> tuple[bool, List[Persona]]:
+        async def delete_and_reload() -> Tuple[bool, List[Persona]]:
             ok = await self.engine.delete(persona_id)
             personas = await self.engine.list_by_user()
             return ok, personas
 
-        def on_success(result: tuple[bool, List[Persona]]) -> None:
+        def on_success(result: Tuple[bool, List[Persona]]) -> None:
             ok, personas = result
             if ok:
                 self._populate_personas(personas)
@@ -378,7 +378,7 @@ class PersonaPage(QWidget):
         }
 
         try:
-            async def save_and_reload() -> tuple[str, str, List[Persona]]:
+            async def save_and_reload() -> Tuple[str, str, List[Persona]]:
                 action = "updated"
                 if self._current_persona_id:
                     persona = await self.engine.update(self._current_persona_id, **data)
@@ -390,7 +390,7 @@ class PersonaPage(QWidget):
                 personas = await self.engine.list_by_user()
                 return action, persona.id, personas
 
-            def on_success(result: tuple[str, str, List[Persona]]) -> None:
+            def on_success(result: Tuple[str, str, List[Persona]]) -> None:
                 action, persona_id, personas = result
                 self._current_persona_id = persona_id
                 self._populate_personas(personas, selected_id=persona_id)

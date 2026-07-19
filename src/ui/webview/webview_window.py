@@ -12,8 +12,6 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
-
 from PySide6.QtCore import QUrl
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -21,6 +19,8 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QMainWindow
 
 from src.ui.webview.bridge import CareerBridge
+
+logger = logging.getLogger(__name__)
 
 
 class CareerWebWindow(QMainWindow):
@@ -43,7 +43,6 @@ class CareerWebWindow(QMainWindow):
         self.web_view = QWebEngineView(self)
         self.setCentralWidget(self.web_view)
 
-        # 配置 WebEngine 设置
         # 配置 WebEngine 设置
         settings = self.web_view.settings()
         try:
@@ -110,9 +109,12 @@ class CareerWebWindow(QMainWindow):
         bundle_root = getattr(sys, "_MEIPASS", None)
         if bundle_root:
             candidates.append(Path(bundle_root) / "prototype" / "qwebchannel.js")
+        executable_dir = Path(sys.executable).resolve().parent
         source_root = Path(__file__).resolve().parents[3]
         candidates.extend([
             source_root / "prototype" / "qwebchannel.js",
+            executable_dir / "prototype" / "qwebchannel.js",
+            executable_dir / "_internal" / "prototype" / "qwebchannel.js",
             Path.cwd() / "prototype" / "qwebchannel.js",
         ])
         for path in candidates:

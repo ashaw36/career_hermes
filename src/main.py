@@ -12,7 +12,7 @@ import sys
 import qasync
 from PySide6.QtWidgets import QApplication
 
-from src.config.settings import create_default_config, get_settings
+from src.config.settings import get_settings
 from src.models.database import init_db
 from src.ui.main_window import MainWindow
 

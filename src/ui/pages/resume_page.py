@@ -7,9 +7,8 @@ CareerCraft Agent — 简历预览页面
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -36,7 +35,7 @@ class ResumePage(QWidget):
         super().__init__(parent)
         self.persona_engine = PersonaEngine()
         self._personas: List[Persona] = []
-        self._async_tasks: set[Any] = set()
+        self._async_tasks: Set[Any] = set()
 
         self._init_ui()
         self._load_personas()

@@ -8,7 +8,6 @@ CareerCraft Agent — WebView API 同步适配层
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -279,6 +278,12 @@ class CareerAPI:
     @staticmethod
     def _match_to_dict(m: Any, job_title: str = "", persona_name: str = "") -> Dict[str, Any]:
         breakdown = getattr(m, "score_breakdown", {}) or {}
+        matched_skills = list(getattr(m, "matched_skills", []) or [])
+        missing_skills = list(getattr(m, "missing_skills", []) or [])
+        job_desc = getattr(m, "job_desc", None)
+        persona = getattr(m, "persona", None)
+        parsed_skills = list(getattr(job_desc, "parsed_skills", []) or [])
+        required_skills = parsed_skills or matched_skills + missing_skills
         return {
             "id": str(m.id) if hasattr(m, "id") else "",
             "persona_id": str(getattr(m, "persona_id", "")) or "",
@@ -287,17 +292,19 @@ class CareerAPI:
             "skill_score": breakdown.get("skill", 0),
             "exp_score": breakdown.get("experience", 0),
             "score_breakdown": dict(breakdown),
-            "matched_skills": list(getattr(m, "matched_skills", []) or []),
-            "missing_skills": list(getattr(m, "missing_skills", []) or []),
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
+            "required_skills": required_skills,
+            "skill_gaps": missing_skills,
             "tracking_status": getattr(m, "tracking_status", "new"),
             "status": getattr(m, "tracking_status", "new"),
             "notes": getattr(m, "notes", ""),
             "ai_analysis": getattr(m, "ai_analysis", ""),
             "match_reason": getattr(m, "ai_analysis", "") or getattr(m, "notes", ""),
-            "skill_matches": list(getattr(m, "matched_skills", []) or []),
+            "skill_matches": matched_skills,
             "strengths": [],
-            "job_title": job_title,
-            "persona_name": persona_name,
+            "job_title": job_title or getattr(job_desc, "title", "") or "",
+            "persona_name": persona_name or getattr(persona, "name", "") or "",
         }
 
     def list_jobs(self) -> List[Dict[str, Any]]:
@@ -376,10 +383,12 @@ class CareerAPI:
             reframes = AsyncRunner.run(
                 self.jd_reframe.get_reframed_experiences(match_id)
             )
+            data = [self._reframe_to_dict(r) for r in reframes]
             return {
                 "success": True,
                 "count": len(reframes),
-                "reframes": [self._reframe_to_dict(r) for r in reframes],
+                "reframes": data,
+                "data": data,
             }
         except Exception as e:
             logger.error(f"get_reframe_results error: {e}")
@@ -402,13 +411,17 @@ class CareerAPI:
 
     @staticmethod
     def _reframe_to_dict(r: Any) -> Dict[str, Any]:
+        experience = getattr(r, "experience", None)
         return {
             "id": str(r.id) if hasattr(r, "id") else "",
             "job_match_id": str(getattr(r, "job_match_id", "")) or "",
             "experience_id": str(getattr(r, "experience_id", "")) or "",
             "original_summary": getattr(r, "original_summary", "") or "",
             "reframed_summary": getattr(r, "reframed_summary", "") or "",
+            "reframed_content": getattr(r, "reframed_summary", "") or "",
             "reframing_strategy": getattr(r, "reframing_strategy", "") or "",
+            "target_capability": getattr(r, "reframing_strategy", "") or "",
+            "experience_title": getattr(experience, "title", "") or "",
             "created_at": str(getattr(r, "created_at", "")),
         }
 

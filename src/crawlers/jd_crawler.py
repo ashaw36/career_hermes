@@ -8,7 +8,7 @@ CareerCraft Agent — JD 爬虫存根
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class JDCrawler:
     """
 
     # 模拟 JD 数据库
-    _MOCK_JDS: dict[str, str] = {
+    _MOCK_JDS: Dict[str, str] = {
         "default": """
 高级产品经理
 
@@ -83,7 +83,7 @@ class JDCrawler:
             return self._MOCK_JDS["tencent"].strip()
         return self._MOCK_JDS["default"].strip()
 
-    async def search_jobs(self, keyword: str, city: Optional[str] = None) -> list[dict]:
+    async def search_jobs(self, keyword: str, city: Optional[str] = None) -> List[Dict[str, str]]:
         """
         搜索岗位（模拟）
 

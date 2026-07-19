@@ -304,7 +304,10 @@ Return a JSON object with exactly these keys:
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(JobMatchExperienceReframe)
-                .options(selectinload(JobMatchExperienceReframe.job_match))
+                .options(
+                    selectinload(JobMatchExperienceReframe.job_match),
+                    selectinload(JobMatchExperienceReframe.experience),
+                )
                 .where(JobMatchExperienceReframe.job_match_id == match_id)
                 .order_by(JobMatchExperienceReframe.created_at.desc())
             )

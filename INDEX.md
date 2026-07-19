@@ -51,7 +51,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || **Sprint 6 (Week 11-12)** | ✅ 已完成 | GUI完善（经历/角色/简历/岗位页面）、Polish、测试补齐 |
 |||| **Sprint 7-8 (Week 15-18)** | ✅ 已完成 | 岗位匹配增强+JD修饰、WebView全页面动态化、e2e测试补齐、BMAD文档更新 |
 |||| **Sprint 9-10 (Week 19-22)** | ✅ 已完成 | P0✅ P1✅ P2✅ P3✅ | 126测试通过 |
-|||| **Sprint 11 (Week 23-24)** | ⚙️ **进行中** | P0/P1 补漏: PDF真实导出 + Fit Score手动覆盖 + 经历重述编辑/重置 | 锁定 D6-B，不做 P2 差异化
+|||| **Sprint 11 (Week 23-24)** | ✅ 已完成 | PDF导出 + Fit Score覆盖 + 重述编辑重置 | 149测试通过 |
 
 ## 📁 核心文件清单
 
@@ -257,12 +257,11 @@ pytest tests/ -v --tb=short
   - 移除全局 header "Mock模式"/“连接状态"按钮，清理无用配置
   - 测试：**132 passed** 全部通过
 
-- **2026-07-19** — **BMAD 文档同步 + Sprint 11 计划确认**：
-  - PRD v1.0 更新: 所有 AC 添加实现状态标注（✅/⚠️/❌），锁定决策 D6 更新
-  - ARCH v1.0 更新: 表示层改为 WebView + QWebChannel 方案，异步架构更新
-  - 新增 Sprint 11 计划: PDF 真实导出 + Fit Score 手动覆盖 + 经历重述编辑/重置
-  - 锁定: D6-B 补齐 P0/P1 缺口，D7/D8 不做
-  - 测试: **149 passed** 全部通过
+- **2026-07-19** — **Sprint 11 完成 — P0/P1 补漏**：
+  - Story 11.1: PDF 真实导出 (`pdf_exporter.py` 接入 Bridge，前端 base64→Blob 下载)
+  - Story 11.2: Fit Score 手动覆盖 (角色页滑块 0-100 + `已手动调整`标记)
+  - Story 11.3: 经历重述编辑/重置 (岗位详情页 textarea 编辑 + 删除重新走 LLM)
+  - 149 测试通过，推送 `main` (`f867e11`)
 
 - **2026-07-19** — 用户体验优兆修复:
   1. 角色创建/保存/删除后自动同步刷新简历页和岗位匹配页的角色选择器（新增 `refreshAllPersonaSelectors()`）

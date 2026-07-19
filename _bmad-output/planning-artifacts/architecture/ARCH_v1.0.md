@@ -16,12 +16,10 @@
 || `SkillAnalyzer` | 技能图谱 CRUD、别名标准化、预置节点加载、雷达图数据集 | 原始技能名 / 技能列表 | SkillNode 树、5 维聚合数据、标准名 | Database, LLMRouter(预留) |
 || **`ImportParser`** *(S7-8 新增)* | **Markdown/文本/JSON/PDF/Word 导入解析**、**LLM 自动分析非结构化文件** | 原始文本 / 文件内容 | ExperienceDraft 列表 | LLMRouter |
 | | `LLMRouter` | 多模型配置、路由、故障降级、流式输出、Token 追踪 | messages, model_key, stream flag | 文本流/完整文本、latency | httpx, Settings |
-| **表示层** | `MainWindow` | 主窗口、导航栈、全局异常捕获、主题 | 用户操作 | 视图切换、Toast | 所有 View |
-| | `ExperienceView` | 对话录入弹窗、时间线、富文本编辑、冲突高亮 | 经历数据 | 用户确认信号 | ExperienceManager |
-| | `PersonaView` | 角色表单、切换器、Fit Score 可视化条、权重编辑 | persona 配置 | 激活角色信号 | PersonaEngine |
-| | `ResumeView` | 模板选择、Markdown 预览、PDF 导出、调优输入框 | 渲染后的简历 | 导出文件路径 | ResumeBuilder |
-| | `JobMatchView` | JD 粘贴/URL 输入、匹配结果展示、Gap 雷达图、状态流转按钮 | JD 与 persona | 匹配记录 | JobMatcher |
-| | `SkillGraphView` | 技能树浏览、搜索、别名管理界面 | skill_nodes | 编辑信号 | SkillAnalyzer |
+|| **表示层** | `WebViewWindow` | WebView 主窗口、QWebEngineView + DevTools 调试 | HTML URL | 渲染后的 Web 页面 | `bridge.py` |
+|| | `bridge.py` | QWebChannel Python 桥接（23个 API 端点）| JS 调用 | JSON 响应 | `api_handler.py` |
+|| | `api_handler.py` | 同步 API 适配层（异步 Service → 同步 Bridge）| Bridge 请求 | Service 结果 | 所有 Service |
+|| | `ui-prototype.html` | Linear 深色风格 HTML 原型（8 页面 + JS 桥接）| 用户交互 | 渲染的 DOM | `qwebchannel.js` |
 | **基础设施** | `config.py` | Pydantic Settings、环境变量、默认配置 | `.env` / YAML | Settings 实例 | 无 |
 | | `security.py` | API Key 加解密、数据库加密、密钥派生 | 明文 / 密文 | 安全存储对象 | cryptography, keyring |
 | | `backup.py` | 定时备份、崩溃恢复、保留策略 | 数据库文件 | `.db.backup` | 无 |
@@ -154,7 +152,7 @@ GUI: 渲染 PyQtGraph/ECharts 雷达图，展示匹配/缺失列表
 
 | 方面 | 策略 |
 |------|------|
-| **异步架构** | GUI 主线程保持 60fps；所有服务调用通过 `asyncio.create_task` + Signal 回调返回；数据库 `aiosqlite` 连接池 size=5；HTTP `httpx.AsyncClient` 全局复用连接池 | **Sprint 7-8: qasync 统一事件循环**，主线程直接 `await` 异步服务调用，无需 `QThread` 包装 |
+|| **异步架构** | GUI 主线程保持 60fps；所有服务调用通过 `asyncio.create_task` + Signal 回调返回；数据库 `aiosqlite` 连接池 size=5；HTTP `httpx.AsyncClient` 全局复用连接池 | **Sprint 9-10: WebView + QWebChannel 同步桥接**，Bridge 层通过 `AsyncRunner.run()` 将异步 Service 转换为同步 JSON 返回给 JS。无需 `QThread` 或 qasync。 |
 || **缓存策略** | LLM 缓存：prompt+text 的 SHA256 为 key，结果缓存 7 天；重述缓存：`(experience_id + persona_id + prompt_version)` → 缓存；模板缓存：Jinja2 默认编译缓存；技能映射缓存：LRU(1000) | 增加 `ImportParser` 缓存：文件分析结果按 `(content_hash + prompt_version)` 缓存 1天 |
 | **大数据量/渲染** | 经历库按年份分页(LIMIT 50)；PDF 生成投递到 `QThreadPool` 或 `asyncio.to_thread`；Playwright browser 懒加载，空闲 5 分钟自动关闭 |
 | **数据库性能** | WAL 模式支持读写并发；`experiences(start_date, end_date)` 联合索引；`skill_nodes(name, aliases)` 索引 |

@@ -100,6 +100,16 @@ class TestCareerBridge:
         data: Dict[str, Any] = json.loads(result)
         assert "success" in data
 
+    def test_import_file_returns_json(self, bridge: CareerBridge) -> None:
+        """importFile 导入 PDF/Word 文件返回结果（用空内容测试）"""
+        import base64
+
+        empty_pdf = base64.b64encode(b"%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\n").decode()
+        result = bridge.importFile("test.pdf", empty_pdf)
+        data: Dict[str, Any] = json.loads(result)
+        # 可能成功或失败（因为是个假 PDF），但必须返回有效 JSON
+        assert "success" in data
+
     def test_parse_jd_with_sample_text(self, bridge: CareerBridge) -> None:
         """parseJD 接受 JD 文本并返回解析结果"""
         jd = "高级产品经理，要求 Python、SQL、产品规划"

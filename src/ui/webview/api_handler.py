@@ -633,7 +633,7 @@ class CareerAPI:
             return {"success": False, "error": str(e)}
 
     def import_experiences(self, format: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """批量导入经历"""
+        """批量导入经历（文本/Markdown/JSON）"""
         try:
             from src.services.import_parser import ImportParser
 
@@ -660,6 +660,36 @@ class CareerAPI:
             return {"success": True, "count": count}
         except Exception as e:
             logger.error(f"import_experiences error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def import_file(self, file_name: str, base64_content: str) -> Dict[str, Any]:
+        """导入 PDF/Word 文件，提取文本后由 LLM 解析为结构化经历并自动保存"""
+        try:
+            import base64
+
+            from src.services.import_parser import ImportParser
+
+            file_bytes = base64.b64decode(base64_content)
+            parser = ImportParser()
+            drafts = AsyncRunner.run(parser.import_file(file_name, file_bytes))
+
+            count = 0
+            for draft in drafts:
+                try:
+                    result = AsyncRunner.run(self.exp_mgr.confirm_and_save(draft))
+                    if result:
+                        count += 1
+                except Exception as e:
+                    logger.warning(f"导入经历失败: {e}")
+                    continue
+
+            return {
+                "success": True,
+                "count": count,
+                "message": f"成功从 {file_name} 导入 {count} 条经历",
+            }
+        except Exception as e:
+            logger.error(f"import_file error: {e}")
             return {"success": False, "error": str(e)}
 
     def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:

@@ -385,6 +385,59 @@ class ImportParser:
             },
         )
 
+    @staticmethod
+    def extract_text_from_pdf(file_bytes: bytes) -> str:
+        """从 PDF 文件提取文本。"""
+        import fitz
+
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        try:
+            text_parts: List[str] = []
+            for page in doc:
+                text_parts.append(page.get_text())
+            return "\n".join(text_parts)
+        finally:
+            doc.close()
+
+    @staticmethod
+    def extract_text_from_word(file_bytes: bytes) -> str:
+        """从 Word 文件提取文本。"""
+        import io
+
+        from docx import Document
+
+        doc = Document(io.BytesIO(file_bytes))
+        text_parts: List[str] = []
+        for para in doc.paragraphs:
+            if para.text.strip():
+                text_parts.append(para.text)
+        return "\n".join(text_parts)
+
+    async def import_file(self, file_name: str, file_bytes: bytes) -> List[ExperienceDraft]:
+        """
+        导入 PDF/Word/文本文件，提取全文后交给 LLM 分析。
+
+        Args:
+            file_name: 原始文件名（用于判断扩展名）
+            file_bytes: 文件二进制内容
+
+        Returns:
+            ExperienceDraft 列表
+        """
+        ext = file_name.lower().rsplit(".", 1)[-1] if "." in file_name else ""
+        if ext == "pdf":
+            text = self.extract_text_from_pdf(file_bytes)
+        elif ext in ("doc", "docx"):
+            text = self.extract_text_from_word(file_bytes)
+        else:
+            text = file_bytes.decode("utf-8", errors="ignore")
+
+        if not text.strip():
+            raise ImportParserError(f"无法从 {file_name} 提取文本")
+
+        logger.info("从 %s 提取文本: %d 字符", file_name, len(text))
+        return await self.analyze_file_with_llm(text, file_type=file_name)
+
     async def analyze_file_with_llm(
         self, file_content: str, file_type: str = "未知"
     ) -> List[ExperienceDraft]:

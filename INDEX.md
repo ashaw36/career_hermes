@@ -234,3 +234,10 @@ pytest tests/ -v --tb=short
   - P1 体验增强：技能图谱详情展示描述/前置技能/学习资源跳转、学习路径UI增加描述/链接/步骤、学习路径后端字段名统一 `duration`
   - P2 优化：经历列表排版 `text-overflow: ellipsis`、解析并匹配状态细化提示
   - 测试：**131 passed** 全部通过
+
+- **2026-07-19** — PDF/Word 解析 + Mock 清理：
+  - 新增 `import_parser.extract_text_from_pdf()` 和 `extract_text_from_word()`，支持 PDF/Word 上传自动解析
+  - 新增 Bridge API `importFile(file_name, base64_content)`，前端通过 `readAsDataURL` 传输 base64
+  - 上传 PDF/Word 后 LLM 自动提取结构化经历并保存到经历库
+  - 移除全局 header "Mock模式"/“连接状态"按钮，清理无用配置
+  - 测试：**132 passed** 全部通过

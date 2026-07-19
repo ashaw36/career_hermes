@@ -179,6 +179,16 @@ class CareerBridge(QObject):
             logger.error(f"Bridge importExperiences error: {e}")
             return self._err(str(e))
 
+    @Slot(str, str, result=str)
+    def importFile(self, file_name: str, base64_content: str) -> str:
+        """导入 PDF/Word 文件，base64 编码"""
+        try:
+            result = self._api.import_file(file_name, base64_content)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge importFile error: {e}")
+            return self._err(str(e))
+
     # ─── 岗位匹配 ───
 
     @Slot(str, result=str)

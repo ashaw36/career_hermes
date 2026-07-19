@@ -32,6 +32,8 @@ dependencies = [
     "Jinja2>=3.1.0",
     "markdown>=3.5.0",
     "structlog>=24.1.0",
+    "pymupdf>=1.28.0",
+    "python-docx>=1.2.0",
 ]
 
 [project.optional-dependencies]

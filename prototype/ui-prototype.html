@@ -744,7 +744,6 @@
       <header class="header">
         <span class="header-title" id="page-title">欢迎</span>
         <div class="header-actions">
-          <button class="btn btn-ghost btn-sm" onclick="toggleMockMode()">连接状态</button>
         </div>
       </header>
 
@@ -2080,10 +2079,6 @@
     }
 
     /* ─── Settings ─── */
-    function toggleMockMode() {
-      alert('Mock 模式切换功能待实现，当前版本请在 src/config/settings.yaml 中手动配置。');
-    }
-
     function saveAppPreferences() {
       alert('应用偏好已保存（当前版本为本地缓存，重启后生效）。');
     }
@@ -2138,14 +2133,31 @@
       if (!file) return;
       var ext = file.name.split('.').pop().toLowerCase();
       var formatSelect = document.getElementById('import-format');
+
+      // PDF/Word 走 base64 直传后端解析
       if (ext === 'pdf' || ext === 'doc' || ext === 'docx') {
-        alert('当前版本暂不支持PDF/Word解析，请粘贴文本内容');
-        input.value = '';
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          // e.target.result 格式: data:application/pdf;base64,xxxx
+          var base64 = e.target.result.split(',')[1];
+          window._pendingImportFile = { name: file.name, base64: base64 };
+          var contentArea = document.getElementById('import-content');
+          contentArea.value = '[已选择文件: ' + file.name + ']\\n点击"导入"后，LLM 将自动解析文件内容并生成结构化经历。';
+          contentArea.readOnly = true;
+          if (formatSelect) formatSelect.disabled = true;
+        };
+        reader.readAsDataURL(file);
         return;
       }
+
+      // 文本/标记文件走原有流程
+      window._pendingImportFile = null;
+      var contentArea = document.getElementById('import-content');
+      contentArea.readOnly = false;
+      if (formatSelect) formatSelect.disabled = false;
       var reader = new FileReader();
       reader.onload = function(e) {
-        document.getElementById('import-content').value = e.target.result;
+        contentArea.value = e.target.result;
         if (ext === 'md') formatSelect.value = 'markdown';
         else if (ext === 'json') formatSelect.value = 'json';
         else formatSelect.value = 'text';
@@ -2154,6 +2166,31 @@
     }
 
     function submitImport() {
+      // 如果有待导入的 PDF/Word 文件，走后端解析
+      if (window._pendingImportFile && window._pendingImportFile.base64) {
+        if (!window.pybridge) return;
+        showLoading('正在解析 ' + window._pendingImportFile.name + '...');
+        window.pybridge.importFile(
+          window._pendingImportFile.name,
+          window._pendingImportFile.base64,
+          function(result) {
+            hideLoading();
+            try {
+              var resp = JSON.parse(result);
+              if (resp.success) {
+                alert(resp.message || '导入成功，共 ' + (resp.count || 0) + ' 条经历');
+                resetImportPanel();
+                toggleImportPanel();
+                loadExperiencesFromBridge();
+              } else {
+                alert('导入失败: ' + (resp.error || ''));
+              }
+            } catch (e) { hideLoading(); alert('导入错误'); }
+          }
+        );
+        return;
+      }
+
       var format = document.getElementById('import-format').value;
       var content = document.getElementById('import-content').value.trim();
       if (!content) { alert('请粘贴内容或选择文件'); return; }
@@ -2174,6 +2211,16 @@
           }
         } catch (e) { hideLoading(); alert('导入错误'); }
       });
+    }
+
+    function resetImportPanel() {
+      window._pendingImportFile = null;
+      var contentArea = document.getElementById('import-content');
+      if (contentArea) { contentArea.value = ''; contentArea.readOnly = false; }
+      var fileInput = document.getElementById('import-file');
+      if (fileInput) fileInput.value = '';
+      var formatSelect = document.getElementById('import-format');
+      if (formatSelect) { formatSelect.value = 'text'; formatSelect.disabled = false; }
     }
 
     /* ─── Skills Page ─── */

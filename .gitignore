@@ -1,16 +1,25 @@
-.venv/
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-.DS_Store
-.env
-*.backup
-*.db-wal
-*.db-shm
-*.coverage
+*.py[cod]
+*$py.class
+*.so
 
-# PyInstaller build artifacts
+# Build artifacts
 build/
 dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev helpers
+.codex-tasks/
+
+# PyInstaller
 *.spec

@@ -7,9 +7,9 @@ PySide6 QWebEngineView 容器，加载本地 HTML 原型，
 
 from __future__ import annotations
 
-import os
 import sys
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
 from PySide6.QtCore import QUrl
 from PySide6.QtWebChannel import QWebChannel
@@ -63,31 +63,30 @@ class CareerWebWindow(QMainWindow):
         self.web_view.load(QUrl.fromLocalFile(html_path))
 
     def _resolve_html_path(self) -> str:
-        """Resolve HTML file absolute path (dev vs PyInstaller bundle)"""
-        candidates: list[str] = []
+        """Resolve HTML file absolute path in dev, onedir, and onefile bundles."""
+        candidates: List[Path] = []
 
         # PyInstaller bundled environment
-        if hasattr(sys, "_MEIPASS"):
-            candidates.append(
-                os.path.join(sys._MEIPASS, "prototype", "ui-prototype.html")
-            )
+        bundle_root = getattr(sys, "_MEIPASS", None)
+        if bundle_root:
+            candidates.append(Path(bundle_root) / "prototype" / "ui-prototype.html")
 
-        candidates.extend([
-            # Dev: relative to this file (project root)
-            os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "..", "..", "prototype", "ui-prototype.html")
-            ),
-            # Legacy bundle: sibling to executable
-            os.path.join(os.path.dirname(sys.executable), "prototype", "ui-prototype.html"),
-            # Current working dir
-            os.path.abspath("prototype/ui-prototype.html"),
-        ])
+        executable_dir = Path(sys.executable).resolve().parent
+        source_root = Path(__file__).resolve().parents[3]
+        candidates.extend(
+            [
+                source_root / "prototype" / "ui-prototype.html",
+                executable_dir / "prototype" / "ui-prototype.html",
+                executable_dir / "_internal" / "prototype" / "ui-prototype.html",
+                Path.cwd() / "prototype" / "ui-prototype.html",
+            ]
+        )
 
         for path in candidates:
-            if os.path.isfile(path):
-                return path
+            if path.is_file():
+                return str(path)
         # Fallback to first candidate (let WebEngine report the error)
-        return candidates[0]
+        return str(candidates[0])
 
     def keyPressEvent(self, event) -> None:
         """F12 打开 DevTools"""

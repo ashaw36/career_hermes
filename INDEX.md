@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 9-10 完成 + 前端补齐** — P0✅ P1✅ P2✅ P3✅ | 131 tests passed | 前端 7 项缺失功能已接入 Bridge
+> 当前阶段：**Sprint 9-10 完成 + 前端补齐 + 文件导入自动分析验收** — P0✅ P1✅ P2✅ P3✅ | 148 tests passed | 前端 7 项缺失功能已接入 Bridge | 文件导入 E2E 验收通过
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -114,7 +114,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（17个） |
 ||| `tests/test_skill_graph.py` | 技能图谱管理测试 |
 
-|**测试总数：131 个用例，全部通过**
+|**测试总数：148 个用例，全部通过**
 
 |**总代码量：~4,300 行 Python + ~2,000 行 HTML/JS（不含测试）**
 
@@ -234,6 +234,12 @@ pytest tests/ -v --tb=short
   - P1 体验增强：技能图谱详情展示描述/前置技能/学习资源跳转、学习路径UI增加描述/链接/步骤、学习路径后端字段名统一 `duration`
   - P2 优化：经历列表排版 `text-overflow: ellipsis`、解析并匹配状态细化提示
   - 测试：**131 passed** 全部通过
+
+- **2026-07-19** — 文件导入自动分析测试 + E2E 验收：
+  - 新增 `tests/test_import_parser_file.py` (16 测试)：PDF 文本提取、Word 文本提取、LLM 分析、import_file 完整链路、_to_draft 转换
+  - 新增 `scripts/validate_import_e2e.py` 验收脚本：模拟项目总结上传 → 文本提取 → LLM分析 → 保存到库 → Bridge API 调用
+  - 验收结果：字段完整性 100% 通过（title/type/raw_description/skills/organization/dates/achievements/metrics）
+  - 测试：**148 passed** 全部通过
 
 - **2026-07-19** — PDF/Word 解析 + Mock 清理：
   - 新增 `import_parser.extract_text_from_pdf()` 和 `extract_text_from_word()`，支持 PDF/Word 上传自动解析

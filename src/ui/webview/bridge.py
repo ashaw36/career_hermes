@@ -116,6 +116,25 @@ class CareerBridge(QObject):
             logger.error(f"Bridge deletePersona error: {e}")
             return self._err(str(e))
 
+    @Slot(str, result=str)
+    def getExperiencesWithFitScore(self, persona_id: str) -> str:
+        try:
+            result = self._api.get_experiences_with_fit_score(persona_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge getExperiencesWithFitScore error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def updateFitScore(self, json_str: str) -> str:
+        try:
+            data: Dict[str, Any] = json.loads(json_str)
+            result = self._api.update_fit_score(data)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge updateFitScore error: {e}")
+            return self._err(str(e))
+
     # ─── 简历 ───
 
     @Slot(str, str, result=str)
@@ -130,13 +149,8 @@ class CareerBridge(QObject):
     @Slot(str, result=str)
     def exportResumePDF(self, persona_id: str) -> str:
         try:
-            result = self._api.generate_resume(persona_id)
-            markdown = result.get("markdown", "") if isinstance(result, dict) else ""
-            return self._ok({
-                "message": "PDF导出由后端处理",
-                "markdown": markdown,
-                "placeholder": True,
-            })
+            result = self._api.export_resume_pdf(persona_id)
+            return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Bridge exportResumePDF error: {e}")
             return self._err(str(e))
@@ -261,6 +275,25 @@ class CareerBridge(QObject):
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Bridge getReframeResults error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def updateReframe(self, json_str: str) -> str:
+        try:
+            data: Dict[str, Any] = json.loads(json_str)
+            result = self._api.update_reframe(data)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge updateReframe error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def resetReframe(self, reframe_id: str) -> str:
+        try:
+            result = self._api.reset_reframe(reframe_id)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge resetReframe error: {e}")
             return self._err(str(e))
 
     # ─── 学习路径 ───

@@ -1034,6 +1034,12 @@
                   <label class="form-label">目标岗位</label>
                   <input class="form-input" id="persona-form-targets" type="text" placeholder="产品经理, 供应链PM">
                 </div>
+                <div class="form-group" style="margin-top: 16px;">
+                  <div class="section-subtitle" style="margin-bottom: 10px;">经历适配度 (Fit Score)</div>
+                  <div id="persona-fit-scores" style="font-size: 13px; color: var(--text-tertiary);">
+                    选择角色后加载...
+                  </div>
+                </div>
                 <div class="toolbar">
                   <button class="btn btn-primary" onclick="saveCurrentPersona()">保存角色</button>
                   <button class="btn btn-ghost" onclick="deleteCurrentPersona()">删除</button>
@@ -1550,6 +1556,68 @@
         inputs[2].value = item.tone_style || 'business_insight';
         inputs[3].value = (item.target_job_profiles || []).join(', ');
       }
+      loadFitScoresForPersona(personaId);
+    }
+
+    function loadFitScoresForPersona(personaId) {
+      var container = document.getElementById('persona-fit-scores');
+      if (!container || !personaId) {
+        if (container) container.innerHTML = '选择角色后加载...';
+        return;
+      }
+      container.innerHTML = '加载中...';
+      if (!window.pybridge) return;
+      window.pybridge.getExperiencesWithFitScore(personaId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success && resp.data && resp.data.length > 0) {
+            renderFitScores(resp.data, personaId);
+          } else {
+            container.innerHTML = '<span style="color: var(--text-tertiary);">暂无经历或适配度数据</span>';
+          }
+        } catch (e) { container.innerHTML = '加载失败'; }
+      });
+    }
+
+    function renderFitScores(items, personaId) {
+      var container = document.getElementById('persona-fit-scores');
+      var html = '';
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var overriddenClass = item.user_overridden ? 'color: var(--accent); font-weight: 600;' : 'color: var(--text-secondary);';
+        var overriddenLabel = item.user_overridden ? ' (已手动调整)' : '';
+        html += '<div style="margin-bottom: 10px; padding: 8px; background: var(--bg-tertiary); border-radius: 6px;">' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">' +
+            '<span style="font-weight: 500;">' + escapeHtml(item.title || '未命名') + '</span>' +
+            '<span style="font-size: 12px; ' + overriddenClass + '">' + item.relevance_score + '%' + overriddenLabel + '</span>' +
+          '</div>' +
+          '<input type="range" min="0" max="100" value="' + item.relevance_score + '" ' +
+            'style="width: 100%; cursor: pointer;" ' +
+            'onchange="onFitScoreChange(\'' + personaId + '\', \'' + item.experience_id + '\', this.value)" ' +
+            'oninput="this.nextElementSibling.innerText = this.value + \'%\'">' +
+          '<div style="text-align: right; font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">' + item.relevance_score + '%</div>' +
+        '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function onFitScoreChange(personaId, expId, score) {
+      if (!window.pybridge) return;
+      window.pybridge.updateFitScore(JSON.stringify({
+        persona_id: personaId,
+        experience_id: expId,
+        score: parseInt(score, 10),
+      }), function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            // 刷新列表显示覆盖状态
+            loadFitScoresForPersona(personaId);
+          } else {
+            showError('Fit Score 更新失败', resp.error || '');
+          }
+        } catch (e) { showError('Fit Score 更新错误', ''); }
+      });
     }
 
     function saveCurrentPersona() {
@@ -1698,19 +1766,31 @@
       window.pybridge.exportResumePDF(select.value, function(result) {
         try {
           var resp = JSON.parse(result);
-          if (resp.success) {
-            var md = resp.data && resp.data.markdown ? resp.data.markdown : (resp.markdown || '');
-            if (md) {
-              var blob = new Blob([md], {type: 'text/plain'});
-              var url = URL.createObjectURL(blob);
-              var a = document.createElement('a');
-              a.href = url;
-              a.download = '简历_' + select.value + '_PDF占位.txt';
-              a.click();
-              URL.revokeObjectURL(url);
-            } else {
-              showError('PDF导出', resp.data && resp.data.message ? resp.data.message : '暂无内容');
+          if (resp.success && resp.data && resp.data.pdf_base64) {
+            // 下载真实 PDF
+            var byteChars = atob(resp.data.pdf_base64);
+            var byteNums = new Array(byteChars.length);
+            for (var i = 0; i < byteChars.length; i++) {
+              byteNums[i] = byteChars.charCodeAt(i);
             }
+            var byteArray = new Uint8Array(byteNums);
+            var blob = new Blob([byteArray], {type: 'application/pdf'});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = resp.data.filename || ('简历_' + select.value + '.pdf');
+            a.click();
+            URL.revokeObjectURL(url);
+          } else if (resp.fallback_markdown) {
+            // 降级为 Markdown 下载
+            showError('PDF导出失败', resp.error || '将降级为 Markdown 下载');
+            var blob = new Blob([resp.fallback_markdown], {type: 'text/markdown'});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = '简历_' + select.value + '.md';
+            a.click();
+            URL.revokeObjectURL(url);
           } else {
             showError('PDF导出失败', resp.error || '');
           }
@@ -2229,15 +2309,75 @@
           }
           var html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
           reframes.forEach(function(r) {
+            var reframeId = r.id || '';
             html +=
-              '<div style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px;">' +
-                '<div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">' + escapeHtml(r.experience_title || '') + ' → ' + escapeHtml(r.target_capability || '') + '</div>' +
-                '<div style="font-size: 13px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">' + escapeHtml(r.reframed_content || '') + '</div>' +
+              '<div id="reframe-card-' + reframeId + '" style="background: var(--bg-tertiary); border-radius: 8px; padding: 12px;">' +
+                '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">' +
+                  '<div style="font-size: 12px; color: var(--text-tertiary);">' + escapeHtml(r.experience_title || '') + ' → ' + escapeHtml(r.target_capability || '') + '</div>' +
+                  '<div style="display: flex; gap: 6px;">' +
+                    '<button class="btn btn-ghost btn-sm" style="padding: 2px 8px; font-size: 12px;" onclick="toggleReframeEdit(\'' + reframeId + '\')">编辑</button>' +
+                    '<button class="btn btn-ghost btn-sm" style="padding: 2px 8px; font-size: 12px; color: var(--danger);" onclick="resetReframe(\'' + reframeId + '\')">重置</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div id="reframe-view-' + reframeId + '" style="font-size: 13px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">' + escapeHtml(r.reframed_content || '') + '</div>' +
+                '<div id="reframe-edit-' + reframeId + '" style="display: none; margin-top: 8px;">' +
+                  '<textarea id="reframe-ta-' + reframeId + '" style="width: 100%; min-height: 80px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 13px; resize: vertical;">' + escapeHtml(r.reframed_content || '') + '</textarea>' +
+                  '<div style="display: flex; gap: 8px; margin-top: 8px;">' +
+                    '<button class="btn btn-primary btn-sm" onclick="saveReframeEdit(\'' + reframeId + '\')">保存</button>' +
+                    '<button class="btn btn-ghost btn-sm" onclick="toggleReframeEdit(\'' + reframeId + '\')">取消</button>' +
+                  '</div>' +
+                '</div>' +
               '</div>';
           });
           html += '</div>';
           container.innerHTML = html;
         } catch (e) { console.error('getReframeResults error', e); }
+      });
+    }
+
+    function toggleReframeEdit(reframeId) {
+      var viewEl = document.getElementById('reframe-view-' + reframeId);
+      var editEl = document.getElementById('reframe-edit-' + reframeId);
+      if (!viewEl || !editEl) return;
+      if (editEl.style.display === 'none') {
+        viewEl.style.display = 'none';
+        editEl.style.display = 'block';
+      } else {
+        viewEl.style.display = 'block';
+        editEl.style.display = 'none';
+      }
+    }
+
+    function saveReframeEdit(reframeId) {
+      var ta = document.getElementById('reframe-ta-' + reframeId);
+      if (!ta || !window.pybridge) return;
+      window.pybridge.updateReframe(JSON.stringify({
+        reframe_id: reframeId,
+        reframed_summary: ta.value,
+      }), function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            loadReframeResults(gCurrentMatchId);
+          } else {
+            showError('重述保存失败', resp.error || '');
+          }
+        } catch (e) { showError('重述保存错误', ''); }
+      });
+    }
+
+    function resetReframe(reframeId) {
+      if (!confirm('确定重置这条修饰记录吗？重置后将重新走 LLM 生成。')) return;
+      if (!window.pybridge) return;
+      window.pybridge.resetReframe(reframeId, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            loadReframeResults(gCurrentMatchId);
+          } else {
+            showError('重述重置失败', resp.error || '');
+          }
+        } catch (e) { showError('重述重置错误', ''); }
       });
     }
 

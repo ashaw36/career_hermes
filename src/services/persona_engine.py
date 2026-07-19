@@ -239,3 +239,38 @@ class PersonaEngine:
             if skill_lower in kw or kw in skill_lower:
                 return True
         return False
+
+    async def update_fit_score(
+        self,
+        persona_id: str,
+        experience_id: str,
+        score: float,
+    ) -> Optional[RoleExperienceWeight]:
+        """
+        手动更新角色-经历的 Fit Score。
+
+        如果记录已存在则更新 score 并设置 user_overridden=True，
+        否则创建新记录。
+        """
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(RoleExperienceWeight).where(
+                    RoleExperienceWeight.persona_id == persona_id,
+                    RoleExperienceWeight.experience_id == experience_id,
+                )
+            )
+            rew = result.scalar_one_or_none()
+            if rew:
+                rew.relevance_score = max(0.0, min(1.0, score))
+                rew.user_overridden = True
+            else:
+                rew = RoleExperienceWeight(
+                    persona_id=persona_id,
+                    experience_id=experience_id,
+                    relevance_score=max(0.0, min(1.0, score)),
+                    user_overridden=True,
+                )
+                session.add(rew)
+            await session.commit()
+            await session.refresh(rew)
+            return rew

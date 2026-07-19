@@ -224,6 +224,52 @@ class CareerAPI:
             logger.error(f"get_personas error: {e}")
             return []
 
+    def get_experiences_with_fit_score(self, persona_id: str) -> Dict[str, Any]:
+        """获取经历列表及其在指定角色下的 Fit Score"""
+        try:
+            weights = AsyncRunner.run(
+                self.persona_eng.get_weighted_experiences(persona_id, min_score=0.0)
+            )
+            items = []
+            for w in weights:
+                exp = getattr(w, "experience", None)
+                if exp:
+                    items.append({
+                        "experience_id": str(w.experience_id),
+                        "title": getattr(exp, "title", ""),
+                        "relevance_score": round(float(w.relevance_score or 0) * 100),
+                        "user_overridden": bool(w.user_overridden),
+                    })
+            return {"success": True, "data": items}
+        except Exception as e:
+            logger.error(f"get_experiences_with_fit_score error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def update_fit_score(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """手动更新 Fit Score"""
+        try:
+            persona_id = str(data.get("persona_id", ""))
+            experience_id = str(data.get("experience_id", ""))
+            score = float(data.get("score", 0)) / 100.0  # 前端传 0-100
+            if not persona_id or not experience_id:
+                return {"success": False, "error": "缺少 persona_id 或 experience_id"}
+            rew = AsyncRunner.run(
+                self.persona_eng.update_fit_score(persona_id, experience_id, score)
+            )
+            if rew:
+                return {
+                    "success": True,
+                    "data": {
+                        "experience_id": str(rew.experience_id),
+                        "relevance_score": round(float(rew.relevance_score) * 100),
+                        "user_overridden": bool(rew.user_overridden),
+                    },
+                }
+            return {"success": False, "error": "更新失败"}
+        except Exception as e:
+            logger.error(f"update_fit_score error: {e}")
+            return {"success": False, "error": str(e)}
+
     @staticmethod
     def _persona_to_dict(p: Any) -> Dict[str, Any]:
         return {
@@ -425,6 +471,37 @@ class CareerAPI:
             }
         except Exception as e:
             logger.error(f"get_reframe_results error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def update_reframe(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """手动更新单条重述内容"""
+        try:
+            reframe_id = str(data.get("reframe_id", ""))
+            reframed_summary = str(data.get("reframed_summary", ""))
+            if not reframe_id:
+                return {"success": False, "error": "缺少 reframe_id"}
+            reframe = AsyncRunner.run(
+                self.jd_reframe.update_reframe(reframe_id, reframed_summary)
+            )
+            if reframe:
+                return {
+                    "success": True,
+                    "data": self._reframe_to_dict(reframe),
+                }
+            return {"success": False, "error": "重述记录不存在"}
+        except Exception as e:
+            logger.error(f"update_reframe error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def reset_reframe(self, reframe_id: str) -> Dict[str, Any]:
+        """重置单条重述，删除记录后下次重新生成"""
+        try:
+            if not reframe_id:
+                return {"success": False, "error": "缺少 reframe_id"}
+            ok = AsyncRunner.run(self.jd_reframe.reset_reframe(reframe_id))
+            return {"success": ok, "data": {"deleted": ok}}
+        except Exception as e:
+            logger.error(f"reset_reframe error: {e}")
             return {"success": False, "error": str(e)}
 
     @staticmethod
@@ -635,10 +712,47 @@ class CareerAPI:
     # ─── 统计 ───
 
     def export_resume_pdf(self, persona_id: str) -> Dict[str, Any]:
-        """生成简历 PDF（占位实现，返回 markdown 供前端处理）"""
+        """生成简历 PDF。先尝试调用 PDFExporter 生成真实 PDF，如果 fpdf2 未安装则降级为 Markdown 下载。"""
         try:
-            result = self.generate_resume(persona_id)
-            return {"success": True, "data": result}
+            import base64
+
+            from src.services.pdf_exporter import PDFExporter, PDFExporterError
+            from src.services.resume_builder import ResumeBuilder
+
+            # 获取 Persona
+            persona = AsyncRunner.run(self.persona_eng.get_by_id(persona_id))
+            if not persona:
+                return {"success": False, "error": "角色不存在"}
+
+            # 通过 ResumeBuilder 获取经历列表
+            builder = ResumeBuilder(persona_id=persona_id)
+            AsyncRunner.run(builder.prepare())
+            experiences: List[Any] = []
+            for rew in getattr(builder, "_experiences", []) or []:
+                exp = getattr(rew, "experience", None)
+                if exp:
+                    experiences.append(exp)
+
+            # 生成 PDF
+            exporter = PDFExporter()
+            pdf_bytes = AsyncRunner.run(exporter.export_resume(persona, experiences))
+            encoded = base64.b64encode(pdf_bytes).decode("utf-8")
+
+            return {
+                "success": True,
+                "data": {
+                    "pdf_base64": encoded,
+                    "filename": f"简历_{persona.name}.pdf",
+                },
+            }
+        except PDFExporterError:
+            # fpdf2 未安装，降级为 Markdown
+            md_result = self.generate_resume(persona_id)
+            return {
+                "success": False,
+                "error": "fpdf2 未安装，PDF 导出不可用。请运行: pip install fpdf2",
+                "fallback_markdown": md_result.get("markdown", "") if isinstance(md_result, dict) else "",
+            }
         except Exception as e:
             logger.error(f"export_resume_pdf error: {e}")
             return {"success": False, "error": str(e)}

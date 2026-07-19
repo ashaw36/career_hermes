@@ -332,3 +332,42 @@ Return a JSON object with exactly these keys:
             await session.commit()
             logger.info("删除修饰记录: match_id=%s, count=%d", match_id, count)
             return count
+
+    async def update_reframe(
+        self,
+        reframe_id: str,
+        reframed_summary: str,
+    ) -> Optional[JobMatchExperienceReframe]:
+        """
+        手动更新单条重述的 reframed_summary。
+        """
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(JobMatchExperienceReframe)
+                .options(selectinload(JobMatchExperienceReframe.experience))
+                .where(JobMatchExperienceReframe.id == reframe_id)
+            )
+            reframe = result.scalar_one_or_none()
+            if not reframe:
+                return None
+            reframe.reframed_summary = reframed_summary
+            await session.commit()
+            await session.refresh(reframe)
+            return reframe
+
+    async def reset_reframe(self, reframe_id: str) -> bool:
+        """
+        删除单条重述记录，下次会自动重新走 LLM 生成。
+        """
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(JobMatchExperienceReframe).where(
+                    JobMatchExperienceReframe.id == reframe_id
+                )
+            )
+            reframe = result.scalar_one_or_none()
+            if not reframe:
+                return False
+            await session.delete(reframe)
+            await session.commit()
+            return True

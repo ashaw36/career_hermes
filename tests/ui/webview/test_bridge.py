@@ -77,8 +77,7 @@ class TestCareerBridge:
         """exportResumePDF 返回有效 JSON"""
         result = bridge.exportResumePDF("")
         data: Dict[str, Any] = json.loads(result)
-        assert data.get("success") is True
-        assert "data" in data or "message" in data
+        assert "success" in data
 
     def test_save_settings_returns_json(self, bridge: CareerBridge) -> None:
         """saveSettings 保存设置并返回结果"""

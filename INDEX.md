@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 9-10 执行中** — P0✅ P1-1✅ P1-2✅ P1-3⏳ P2⏳ P3⏳ | 待对话式简历调优 + 首次启动引导 + Boss爬虫稳定化 + 打包exe + 技能Gap雷达图
+> 当前阶段：**Sprint 9-10 全部完成** — P0✅ P1✅ P2✅ P3✅ | 109→126 tests passed | 等待最终打包验证
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -50,7 +50,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || **Sprint 5 (Week 9-10)** | ✅ 已完成 | 岗位匹配算法、Gap分析、学习路径推荐（learning_recommender） |
 || **Sprint 6 (Week 11-12)** | ✅ 已完成 | GUI完善（经历/角色/简历/岗位页面）、Polish、测试补齐 |
 ||| **Sprint 7-8 (Week 15-18)** | ✅ 已完成 | 岗位匹配增强+JD修饰、WebView全页面动态化、e2e测试补齐、BMAD文档更新 |
-||| **Sprint 9-10 (Week 19-22)** | 🔄 执行中 | P0✅ P1-1✅ P1-2✅ P1-3⏳ P2⏳ P3⏳ |
+||| **Sprint 9-10 (Week 19-22)** | ✅ 已完成 | P0✅ P1✅ P2✅ P3✅ | 126测试通过 |
 
 ## 📁 核心文件清单
 
@@ -81,7 +81,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/services/pdf_exporter.py` | 242 | PDF简历导出服务（fpdf2） |
 | `src/services/import_parser.py` | 372 | 经历批量导入解析器（Markdown/文本/JSON） |
 || `src/services/jd_reframe_engine.py` | 331 | JD经历修饰引擎（为岗位匹配生成经历修饰版本） |
-|| `src/crawlers/base.py` | 101 | 爬虫基类（Playwright封装） |
+|| `src/services/skill_graph.py` | 200+ | 技能图谱管理（50节点加载、搜索、关联分析） |
+|| `src/data/skill_graph.json` | 50节点 | 预置技能图谱：产品(15)+技术(15)+管理(10)+行业(10) |
+|| `src/crawlers/base.py` | 180+ | 爬虫基类（Playwright封装+UA轮换+Cookie复用+Stealth） |
 | `src/crawlers/boss_zhipin.py` | 141 | Boss直聘爬虫 |
 | `src/crawlers/jd_crawler.py` | 80 | JD爬虫存根（Mock模式） |
 | `src/ui/main_window.py` | 243 | PySide6主窗口（六页面导航） |
@@ -116,11 +118,12 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `tests/test_pdf_exporter.py` | PDF导出服务测试 |
 | `tests/test_router_mock.py` | LLM Router Mock 模式测试 |
 | `tests/test_import_parser.py` | 经历批量导入解析测试 |
-| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（10个） |
+|| `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（10个） |
+|| `tests/test_skill_graph.py` | 技能图谱管理测试 |
 
-**测试总数：109 个用例，全部通过**
+**测试总数：126 个用例，全部通过**
 
-## 📁 Git 提交历史
+**总代码量：~5,800 行（不含测试）**
 
 | Commit | 说明 |
 |--------|------|
@@ -134,7 +137,11 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `10e6c7a` | docs: 产品功能路线图 v1.0 + INDEX更新 — 锁定差异化/模板/云同步决策 |
 || `3dd4441` | feat(Sprint7): 经历批量导入 + 爬虫框架 + 模板选择 — 74测试通过 |
 || `387183c` | feat(Sprint8): 岗位匹配增强+JD修饰+WebView动态化 — 109测试通过 |
-|| `e736919` | feat(Sprint9-10 P0+P1): 冲突检测+WebView全页面动态化+加载状态/错误提示 — 109测试通过 |
+||| `e736919` | feat(Sprint9-10 P0+P1): 冲突检测+WebView全页面动态化+加载状态/错误提示 — 109测试通过 |
+||| `fc9a18c` | feat(Sprint9-10 P2): 首次启动引导+PyInstaller打包+技能Gap雷达图 — 109测试通过 |
+||| `2006091` | feat(Sprint9-10 P1-3): 对话式简历调优 — 109测试通过 |
+||| `3e604ee` | feat(crawler): Boss直聘爬虫稳定化(P2-2) — UA轮换+Cookie复用+Stealth — 109测试通过 |
+||| `d51a439` | P3: 技能图谱预置50节点 — 126测试通过 |
 
 ## 📋 Notion 映射
 
@@ -156,7 +163,22 @@ pytest tests/ -v --tb=short
 
 ## 📝 变更日志
 
-- **2026-07-19** — **P0+P1 完成**并推送 GitHub `e736919`：
+- **2026-07-19** — **Sprint 9-10 全部完成**并推送 GitHub `d51a439`：
+  - ❯ P0-1: 经历时间冲突检测 — `TimeConflictError` + API 层返回 `error_type: TIME_CONFLICT` + 前端弹窗
+  - ❯ P0-2~5: WebView 全页面动态化 — 经历/角色/简历/欢迎页全部接通 bridge API，支持点击切换、表单编辑、新建/删除
+  - ❯ P1-1: 全局加载遮罩层 `showLoading`/`hideLoading`
+  - ❯ P1-2: 友好错误提示 `showError(message, suggestion)` — 右上角浮窗
+  - ❯ P1-3: 对话式简历调优 — `chatRefineResume` Slot + API + 前端输入框/历史/结果展示
+  - ❯ P2-1: 首次启动引导 — 经历为空时欢迎页显示引导卡片 + CTA跳转
+  - ❯ P2-2: Boss 直聘爬虫稳定化 — UA 轮换、随机延迟、Cookie 复用、Stealth 模式、请求头补全
+  - ❯ P2-3: PyInstaller 打包重构 — onefile/onedir 开关、打包前测试检查、路径解析适配 `_internal`
+  - ❯ P2-4: 技能 Gap 雷达图 — ECharts 雷达图可视化当前角色 vs 目标岗位技能覆盖
+  - ❯ P3: 技能图谱预置 50 节点 — 产品(15)+技术(15)+管理(10)+行业(10)，`SkillGraph` 类 + Bridge API
+  - 新增 bridge API: `deleteExperience`, `getPersonaById`, `createPersona`, `updatePersona`, `deletePersona`, `chatRefineResume`, `getSkillGraph`, `searchSkills`
+  - 新增测试: `test_skill_graph.py` + bridge 拓展 = 17 个新用例
+  - 测试: **126 个，全部通过** | 代码量: ~5,800 行
+
+- **2026-07-19** — **P0+P1 完成**并推送 GitHub `e736919`...
   - ❯ P0-1: 经历时间冲突检测 — `TimeConflictError` + API 层返回 `error_type: TIME_CONFLICT` + 前端弹窗
   - ❯ P0-2~5: WebView 全页面动态化 — 经历/角色/简历/欢迎页全部接通 bridge API，点击切换、表单编辑、新建/删除
   - ❯ P1-1: 全局加载遮罩层 `showLoading`/`hideLoading`

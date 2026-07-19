@@ -364,6 +364,18 @@ class CareerBridge(QObject):
             logger.error(f"Bridge openExternalUrl error: {e}")
             return self._err(str(e))
 
+    @Slot(str, result=str)
+    def copyToClipboard(self, text: str) -> str:
+        try:
+            from PySide6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                app.clipboard().setText(text)
+            return json.dumps({"success": True}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge copyToClipboard error: {e}")
+            return self._err(str(e))
+
     # ─── 统计 ───
 
     @Slot(result=str)

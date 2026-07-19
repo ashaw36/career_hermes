@@ -2571,6 +2571,34 @@
       });
     }
 
+    function copyResourceUrl(url) {
+      if (!window.pybridge) return;
+      window.pybridge.copyToClipboard(url, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            showCopiedToast('链接已复制到剪贴板');
+          } else {
+            showCopiedToast('复制失败', true);
+          }
+        } catch (e) { showCopiedToast('复制失败', true); }
+      });
+    }
+
+    function showCopiedToast(message, isError) {
+      var toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = 'position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: ' +
+        (isError ? 'rgba(231,76,60,0.9)' : 'rgba(46,204,113,0.9)') +
+        '; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 10001; pointer-events: none;';
+      document.body.appendChild(toast);
+      setTimeout(function() {
+        toast.style.transition = 'opacity 0.3s';
+        toast.style.opacity = '0';
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+      }, 1800);
+    }
+
     /* ─── Import Panel ─── */
     function toggleImportPanel() {
       var panel = document.getElementById('import-panel');
@@ -2797,7 +2825,7 @@
             '</div>' +
             '<div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">' + escapeHtml(source) + (hours ? ' · 预估 ' + hours + ' 小时' : '') + '</div>';
           if (url) {
-            html += '<a class="skill-modal-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" style="margin-top: 6px; display: inline-block;">访问资源 →</a>';
+            html += '<button class="btn btn-ghost btn-sm" onclick="copyResourceUrl(\'' + escapeHtml(url).replace(/'/g, "\\'") + '\')" style="margin-top: 6px; display: inline-block;">复制链接 →</button>';
           }
           html += '</div>';
           return html;
@@ -2899,7 +2927,7 @@
               '</select>' +
             '</div>' +
             (item.description ? '<div style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">' + escapeHtml(item.description) + '</div>' : '') +
-            (url ? '<a class="resource-link" href="' + escapeHtml(url) + '" target="_blank">访问资源 →</a>' : '<a class="resource-link search" href="' + searchUrl + '" target="_blank">Bilibili 搜索 →</a>') +
+            (url ? '<button class="btn btn-ghost btn-sm" onclick="copyResourceUrl(\'' + escapeHtml(url).replace(/'/g, "\\'") + '\')">复制链接 →</button>' : '<button class="btn btn-ghost btn-sm" onclick="copyResourceUrl(\'' + searchUrl.replace(/'/g, "\\'") + '\')">Bilibili 搜索 →</button>') +
             (steps.length ? '<div style="margin-top: 10px;"><div style="font-size: 11px; color: var(--text-quaternary); margin-bottom: 4px;">学习步骤</div><ol style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 18px;">' + steps.map(function(s){ return '<li>' + escapeHtml(s) + '</li>'; }).join('') + '</ol></div>' : '') +
           '</div>';
       });
@@ -2989,7 +3017,7 @@
               var url = item.url || '';
               return '<div style="font-size: 13px; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: var(--bg-secondary); border-radius: 6px;">' +
                 '<span>' + escapeHtml(item.title || '') + '</span>' +
-                (url ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: var(--accent-brand); text-decoration: none; white-space: nowrap;">访问 →</a>' : '') +
+                (url ? '<button class="btn btn-ghost btn-sm" onclick="copyResourceUrl(\'' + escapeHtml(url).replace(/'/g, "\\'") + '\')" style="font-size: 12px; white-space: nowrap;">复制链接 →</button>' : '') +
               '</div>';
             }).join('') + (items.length > 3 ? '<div style="font-size: 12px; color: var(--text-quaternary); text-align: center;">还有 ' + (items.length - 3) + ' 项...</div>' : '') + '</div>' : '') +
           '</div>';

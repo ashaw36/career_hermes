@@ -143,6 +143,7 @@ def build(native: bool = False, onefile: bool = True, skip_tests: bool = False) 
     # Hidden imports
     hidden_imports = [
         "sqlalchemy.ext.asyncio",
+        "aiosqlite",
         "jinja2",
         "keyring",
         "httpx",

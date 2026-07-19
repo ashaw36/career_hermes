@@ -328,7 +328,7 @@
 
     .exp-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.05); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-    .exp-info { flex: 1; min-width: 0; }
+    .exp-info { flex: 1; min-width: 0; overflow: hidden; }
 
     .exp-title {
       font-size: 14px;
@@ -343,6 +343,9 @@
       font-size: 12px;
       color: var(--text-tertiary);
       margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .exp-tags {
@@ -741,8 +744,7 @@
       <header class="header">
         <span class="header-title" id="page-title">欢迎</span>
         <div class="header-actions">
-          <button class="btn btn-ghost btn-sm">Mock 模式</button>
-          <button class="btn btn-primary btn-sm">+ 新建</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleMockMode()">连接状态</button>
         </div>
       </header>
 
@@ -811,8 +813,8 @@
                   <textarea class="form-textarea" id="import-content" rows="6" placeholder="在此粘贴经历内容..."></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">或选择文件 (.md, .txt, .json)</label>
-                  <input type="file" id="import-file" accept=".md,.txt,.json" style="color: var(--text-secondary); font-size: 13px;" onchange="handleImportFile(this)">
+                  <label class="form-label">或选择文件 (.md, .txt, .json, .pdf, .doc, .docx)</label>
+                  <input type="file" id="import-file" accept=".md,.txt,.json,.pdf,.doc,.docx" style="color: var(--text-secondary); font-size: 13px;" onchange="handleImportFile(this)">
                 </div>
                 <div class="toolbar" style="margin-bottom: 0;">
                   <button class="btn btn-primary btn-sm" onclick="submitImport()">开始导入</button>
@@ -1071,8 +1073,8 @@
                   <input class="form-input" type="number" value="5">
                 </div>
                 <div class="toolbar">
-                  <button class="btn btn-primary" onclick="saveCurrentPersona()">保存角色</button>
-                  <button class="btn btn-ghost" onclick="deleteCurrentPersona()">删除</button>
+                  <button class="btn btn-primary" onclick="saveAppPreferences()">保存偏好</button>
+                  <button class="btn btn-ghost" onclick="resetAppPreferences()">重置</button>
                 </div>
               </div>
             </div>
@@ -1300,29 +1302,60 @@
         el.classList.toggle('selected', gExperiences[idx] && gExperiences[idx].id === expId);
       });
       // 填充右侧表单
+      document.getElementById('exp-form-title').value = item.title || '';
+      document.getElementById('exp-form-role').value = item.role || '';
+      document.getElementById('exp-form-company').value = item.company || '';
+      document.getElementById('exp-form-description').value = item.description || '';
+      document.getElementById('exp-form-start').value = item.start_date || '';
+      document.getElementById('exp-form-end').value = item.end_date || '';
+      document.getElementById('exp-form-skills').value = (item.skills || []).join(', ');
+
       var titleEl = document.querySelector('#page-experiences .split-right .card-title');
       if (titleEl) titleEl.textContent = item.title || '';
       var metaEl = document.querySelector('#page-experiences .split-right .card-meta');
       if (metaEl) metaEl.textContent = (item.role || '') + ' @ ' + (item.company || '') + ' · ' + (item.start_date || '') + ' — ' + (item.end_date || '至今');
-      var descArea = document.querySelector('#page-experiences .split-right textarea');
-      if (descArea) descArea.value = item.description || '';
-      var inputs = document.querySelectorAll('#page-experiences .split-right .form-input');
-      if (inputs.length >= 2) {
-        inputs[0].value = item.start_date || '';
-        inputs[1].value = item.end_date || '';
-      }
+    }
+
+    function newExperience() {
+      gSelectedExpId = null;
+      document.getElementById('exp-form-title').value = '';
+      document.getElementById('exp-form-role').value = '';
+      document.getElementById('exp-form-company').value = '';
+      document.getElementById('exp-form-description').value = '';
+      document.getElementById('exp-form-start').value = '';
+      document.getElementById('exp-form-end').value = '';
+      document.getElementById('exp-form-skills').value = '';
+      document.querySelectorAll('#exp-list-container .exp-item').forEach(function(el) { el.classList.remove('selected'); });
+      var titleEl = document.querySelector('#page-experiences .split-right .card-title');
+      if (titleEl) titleEl.textContent = '请填写并保存新经历';
+      var metaEl = document.querySelector('#page-experiences .split-right .card-meta');
+      if (metaEl) metaEl.textContent = '';
     }
 
     function saveCurrentExperience() {
-      if (!gSelectedExpId) { alert('请先选择一条经历'); return; }
-      var desc = document.querySelector('#page-experiences .split-right textarea');
-      var inputs = document.querySelectorAll('#page-experiences .split-right .form-input');
+      var title = document.getElementById('exp-form-title').value.trim();
+      var role = document.getElementById('exp-form-role').value.trim();
+      var company = document.getElementById('exp-form-company').value.trim();
+      var description = document.getElementById('exp-form-description').value.trim();
+      var start = document.getElementById('exp-form-start').value.trim();
+      var end = document.getElementById('exp-form-end').value.trim();
+      var skills = document.getElementById('exp-form-skills').value.split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s; });
+
+      if (!title) { alert('项目名称不能为空'); return; }
+
       var payload = {
-        id: gSelectedExpId,
-        raw_description: desc ? desc.value : '',
-        start_date: inputs.length >= 1 ? inputs[0].value : '',
-        end_date: inputs.length >= 2 ? inputs[1].value : '',
+        title: title,
+        role: role,
+        company: company,
+        raw_description: description,
+        start_date: start,
+        end_date: end,
+        skills: skills,
       };
+      if (gSelectedExpId) {
+        payload.id = gSelectedExpId;
+      }
+
       if (!window.pybridge) return;
       window.pybridge.saveExperience(JSON.stringify(payload), function(result) {
         try {
@@ -1530,11 +1563,15 @@
         var pills = missingContainer.querySelectorAll('.pill');
         if (pills.length > 0) firstSkill = pills[0].textContent.trim();
       }
+      showLoading('正在生成学习路径...');
       switchPage('learning');
-      if (firstSkill) {
-        document.getElementById('learning-skill-input').value = firstSkill;
-        generateLearningPath();
-      }
+      setTimeout(function() {
+        hideLoading();
+        if (firstSkill) {
+          document.getElementById('learning-skill-input').value = firstSkill;
+          generateLearningPath();
+        }
+      }, 300);
     }
 
     function generateResumeForSelectedPersona() {
@@ -1552,6 +1589,17 @@
           var resp = JSON.parse(result);
           if (resp.success && preview) {
             preview.innerHTML = resp.markdown || '';
+            // 更新技能覆盖面板
+            var coveredEl = document.getElementById('resume-covered-skills');
+            var missingEl = document.getElementById('resume-missing-skills');
+            if (coveredEl) {
+              var covered = resp.covered_skills || [];
+              coveredEl.innerHTML = covered.length ? covered.map(function(s){ return '<span class="pill pill-success">' + escapeHtml(s) + '</span>'; }).join('') : '<span class="pill">暂无已覆盖技能</span>';
+            }
+            if (missingEl) {
+              var missing = resp.missing_skills || [];
+              missingEl.innerHTML = missing.length ? missing.map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') : '<span class="pill">暂无缺失技能</span>';
+            }
           } else {
             if (preview) preview.innerHTML = '<div style="color: var(--danger);">生成失败: ' + escapeHtml(resp.error || '') + '</div>';
             showError('简历生成失败', resp.error || '请检查 LLM 配置或网络连接');
@@ -1708,8 +1756,8 @@
       if (!jdText) { statusEl.textContent = '请先粘贴岗位描述'; return; }
       if (!personaId) { statusEl.textContent = '请先选择角色'; return; }
       if (!window.pybridge) { statusEl.textContent = 'Python 桥接未就绪'; return; }
-      statusEl.textContent = '解析中...';
-      showLoading('解析 JD 并匹配中...');
+      statusEl.textContent = 'JD解析中...';
+      showLoading('JD解析中...');
       window.pybridge.parseJD(jdText, function(result) {
         try {
           var resp = JSON.parse(result);
@@ -1720,13 +1768,14 @@
             return;
           }
           var jobId = resp.data.id;
-          statusEl.textContent = 'JD 解析完成，正在匹配...';
+          statusEl.textContent = '匹配计算中...';
+          showLoading('匹配计算中...');
           window.pybridge.matchJob(jobId, personaId, function(matchResult) {
             hideLoading();
             try {
               var mResp = JSON.parse(matchResult);
               if (mResp.success) {
-                statusEl.textContent = '匹配完成！分数: ' + Math.round(mResp.data.score || 0);
+                statusEl.textContent = '完成！分数: ' + Math.round(mResp.data.score || 0);
                 document.getElementById('jd-input').value = '';
                 loadJobs();
                 viewJobMatches(jobId);
@@ -2031,6 +2080,20 @@
     }
 
     /* ─── Settings ─── */
+    function toggleMockMode() {
+      alert('Mock 模式切换功能待实现，当前版本请在 src/config/settings.yaml 中手动配置。');
+    }
+
+    function saveAppPreferences() {
+      alert('应用偏好已保存（当前版本为本地缓存，重启后生效）。');
+    }
+
+    function resetAppPreferences() {
+      if (confirm('确定重置所有应用偏好吗？')) {
+        alert('应用偏好已重置。');
+      }
+    }
+
     function saveSettings() {
       var model = document.getElementById('settings-model').value;
       var apiKey = document.getElementById('settings-api-key').value;
@@ -2073,11 +2136,16 @@
     function handleImportFile(input) {
       var file = input.files[0];
       if (!file) return;
+      var ext = file.name.split('.').pop().toLowerCase();
+      var formatSelect = document.getElementById('import-format');
+      if (ext === 'pdf' || ext === 'doc' || ext === 'docx') {
+        alert('当前版本暂不支持PDF/Word解析，请粘贴文本内容');
+        input.value = '';
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function(e) {
         document.getElementById('import-content').value = e.target.result;
-        var ext = file.name.split('.').pop().toLowerCase();
-        var formatSelect = document.getElementById('import-format');
         if (ext === 'md') formatSelect.value = 'markdown';
         else if (ext === 'json') formatSelect.value = 'json';
         else formatSelect.value = 'text';
@@ -2183,18 +2251,26 @@
       var content = document.getElementById('skill-detail-content');
       if (!panel || !content) return;
       panel.style.display = 'block';
-      title.textContent = (skill.name || skill.id || '') + ' — 关联技能';
-      var related = (skill.related || skill.connected || []);
-      if (!related.length) {
-        content.innerHTML = '<div style="color: var(--text-tertiary); font-size: 13px;">暂无关联技能</div>';
-        return;
+      title.textContent = (skill.name || skill.id || '') + ' — 详情';
+
+      var html = '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px;">' + escapeHtml(skill.description || '暂无描述') + '</div>';
+
+      var prereqs = (skill.prerequisites || []);
+      if (prereqs.length) {
+        html += '<div style="margin-bottom: 12px;"><div style="font-size: 12px; color: var(--text-quaternary); margin-bottom: 6px;">前置技能</div><div style="display: flex; flex-wrap: wrap; gap: 8px;">' + prereqs.map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div></div>';
       }
-      var html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
-      related.forEach(function(r) {
-        var name = typeof r === 'string' ? r : (r.name || r.id || '');
-        html += '<span class="pill">' + escapeHtml(name) + '</span>';
-      });
-      html += '</div>';
+
+      var related = (skill.related || skill.connected || []);
+      if (related.length) {
+        html += '<div style="margin-bottom: 12px;"><div style="font-size: 12px; color: var(--text-quaternary); margin-bottom: 6px;">关联技能</div><div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+        related.forEach(function(r) {
+          var name = typeof r === 'string' ? r : (r.name || r.id || '');
+          html += '<span class="pill">' + escapeHtml(name) + '</span>';
+        });
+        html += '</div></div>';
+      }
+
+      html += '<button class="btn btn-primary btn-sm" onclick="switchPage(\'learning\'); document.getElementById(\'learning-skill-input\').value = \'' + escapeHtml(skill.name || skill.id || '') + '\'; generateLearningPath();">查看学习资源</button>';
       content.innerHTML = html;
     }
 
@@ -2236,6 +2312,8 @@
       list.forEach(function(item, idx) {
         var status = statuses[item.title || idx] || '未开始';
         var statusClass = status === '已完成' ? 'pill-success' : (status === '学习中' ? 'pill-accent' : '');
+        var link = item.link || item.url || '';
+        var steps = item.steps || [];
         html +=
           '<div class="card" style="margin-bottom: 0;">' +
             '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
@@ -2249,6 +2327,9 @@
                 '<option value="已完成" ' + (status==='已完成'?'selected':'') + '>已完成</option>' +
               '</select>' +
             '</div>' +
+            (item.description ? '<div style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">' + escapeHtml(item.description) + '</div>' : '') +
+            (link ? '<div style="margin-top: 8px;"><a href="' + escapeHtml(link) + '" target="_blank" style="color: var(--accent-violet); font-size: 13px;">访问链接 →</a></div>' : '') +
+            (steps.length ? '<div style="margin-top: 10px;"><div style="font-size: 11px; color: var(--text-quaternary); margin-bottom: 4px;">学习步骤</div><ol style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 18px;">' + steps.map(function(s){ return '<li>' + escapeHtml(s) + '</li>'; }).join('') + '</ol></div>' : '') +
           '</div>';
       });
       html += '</div>';

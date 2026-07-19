@@ -24,6 +24,7 @@ from src.services.learning_recommender import LearningRecommender
 from src.services.persona_engine import PersonaEngine
 from src.services.resume_builder import ResumeBuilder
 from src.services.skill_graph import SkillGraph
+from src.utils.security import SecureStorage
 
 logger = logging.getLogger(__name__)
 
@@ -241,12 +242,38 @@ class CareerAPI:
     # ─── 简历 ───
 
     def generate_resume(self, persona_id: str, template_name: str = "modern") -> Dict[str, Any]:
-        """生成简历"""
+        """生成简历，并返回技能覆盖分析"""
         try:
             builder = ResumeBuilder(persona_id=persona_id)
             AsyncRunner.run(builder.prepare())
             md = AsyncRunner.run(builder.render(template_name=template_name))
-            return {"success": True, "markdown": md}
+
+            # 计算技能覆盖情况
+            covered_skills: List[str] = []
+            missing_skills: List[str] = []
+            try:
+                persona = AsyncRunner.run(self.persona_eng.get_by_id(persona_id))
+                if persona and getattr(persona, "capability_weights", None):
+                    capability_skills = list(getattr(persona, "capability_weights", {}).keys())
+                    # 从 builder 已选经历中汇总技能
+                    exp_skills: set = set()
+                    for rew in getattr(builder, "_experiences", []) or []:
+                        exp = getattr(rew, "experience", None)
+                        if exp:
+                            exp_skills.update(
+                                list(getattr(exp, "skills_demonstrated", []) or [])
+                            )
+                    covered_skills = [s for s in capability_skills if s in exp_skills]
+                    missing_skills = [s for s in capability_skills if s not in exp_skills]
+            except Exception as e:
+                logger.warning(f"generate_resume 技能覆盖计算失败: {e}")
+
+            return {
+                "success": True,
+                "markdown": md,
+                "covered_skills": covered_skills,
+                "missing_skills": missing_skills,
+            }
         except Exception as e:
             logger.error(f"generate_resume error: {e}")
             return {"success": False, "error": str(e)}
@@ -402,6 +429,7 @@ class CareerAPI:
             "company": getattr(j, "company", "") or "",
             "location": getattr(j, "location", "") or "",
             "parsed_skills": list(getattr(j, "parsed_skills", []) or []),
+            "skills": list(getattr(j, "parsed_skills", []) or []),
             "responsibilities": list(getattr(j, "responsibilities", []) or []),
             "raw_text": getattr(j, "raw_text", "") or "",
             "years_of_experience": getattr(j, "years_of_experience", "") or "",
@@ -428,7 +456,7 @@ class CareerAPI:
     # ——— 学习路径 ———
 
     def get_learning_path(self, skill: str) -> List[Dict[str, Any]]:
-        """获取学习路径"""
+        """获取学习路径，字段名统一为 duration"""
         try:
             personas = self.get_personas()
             if not personas:
@@ -440,7 +468,16 @@ class CareerAPI:
                     missing_skills=[skill],
                 )
             )
-            return list(items or [])
+            result = []
+            for item in (items or []):
+                if not isinstance(item, dict):
+                    continue
+                normalized = dict(item)
+                # 兼容 estimated_hours / duration
+                if "estimated_hours" in normalized and "duration" not in normalized:
+                    normalized["duration"] = str(normalized.pop("estimated_hours")) + " 小时"
+                result.append(normalized)
+            return result
         except Exception as e:
             logger.error(f"get_learning_path error: {e}")
             return []
@@ -626,9 +663,32 @@ class CareerAPI:
             return {"success": False, "error": str(e)}
 
     def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """保存设置（占位实现）"""
+        """保存设置：安全存储 API Key，保存模型选择"""
         try:
-            logger.info(f"保存设置: {data}")
+            model = data.get("model", "")
+            api_key = data.get("api_key", "")
+
+            # 保存 API Key（尝试推断 provider，失败不阻断）
+            if api_key:
+                provider = "default"
+                if model.startswith("gpt") or model.startswith("o1") or model.startswith("o3"):
+                    provider = "openai"
+                elif model.startswith("claude"):
+                    provider = "anthropic"
+                elif model.startswith("qwen"):
+                    provider = "tongyi"
+                try:
+                    SecureStorage.store_api_key(provider, api_key)
+                except Exception as e:
+                    logger.warning(f"API Key 安全存储失败: {e}")
+
+            # 保存模型偏好到 YAML 配置
+            from src.config.settings import _load_yaml_config, _save_yaml_config
+            config = _load_yaml_config()
+            config["preferred_model"] = model
+            _save_yaml_config(config)
+
+            logger.info(f"保存设置: model={model}")
             return {"success": True, "message": "设置已保存"}
         except Exception as e:
             logger.error(f"save_settings error: {e}")

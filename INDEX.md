@@ -225,5 +225,12 @@ pytest tests/ -v --tb=short
 - **2026-07-17** — Sprint 1-6 全部完成：
   - Sprint 4: JD解析(job_parser)、经历重述(retelling_engine)、JobMatcher(规则匹配)、router多模型降级
   - Sprint 5: learning_recommender(学习路径推荐)
-  - Sprint 6: GUI完善(经历/角色/简历/岗位页面)、测试补齐(53个通过)
+  - Sprint 6: GUI完善(经历/角色/简历/岗位页面)、测试齐全(53个通过)
   - 代码总量：~3,640 行，自驻 cron job 每30分钟检查
+
+- **2026-07-19** — 前端交互全面审计 + 14项缺陷修复：
+  - P0 修复：经历新建按钮补齐 `newExperience()`、经历保存重写支持全字段、岗位列表技能标签 `_job_to_dict` 映射
+  - P1 修复：全局header移除"新建"按钮 + "Mock模式"改为"连接状态"、批量导入扩展PDF/Word accept(但提示暂不支持)、简历生成返回技能覆盖数据、设置 `save_settings` 实现真实保存(SecureStorage + config.yaml)、设置页应用偏好按钮解绑错误函数
+  - P1 体验增强：技能图谱详情展示描述/前置技能/学习资源跳转、学习路径UI增加描述/链接/步骤、学习路径后端字段名统一 `duration`
+  - P2 优化：经历列表排版 `text-overflow: ellipsis`、解析并匹配状态细化提示
+  - 测试：**131 passed** 全部通过

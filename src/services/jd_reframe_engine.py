@@ -84,7 +84,9 @@ class JDReframeEngine:
             # 2. 检查是否已有缓存
             if not force_refresh:
                 existing = await session.execute(
-                    select(JobMatchExperienceReframe).where(
+                    select(JobMatchExperienceReframe)
+                    .options(selectinload(JobMatchExperienceReframe.experience))
+                    .where(
                         JobMatchExperienceReframe.job_match_id == match_id
                     )
                 )

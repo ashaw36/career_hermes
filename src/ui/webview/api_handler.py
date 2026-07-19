@@ -384,6 +384,7 @@ class CareerAPI:
             "strengths": [],
             "job_title": job_title or getattr(job_desc, "title", "") or "",
             "persona_name": persona_name or getattr(persona, "name", "") or "",
+            "job_description": getattr(job_desc, "raw_description", "") or getattr(job_desc, "description", "") or "",
         }
 
     def list_jobs(self) -> List[Dict[str, Any]]:

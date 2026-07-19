@@ -7,7 +7,7 @@ Playwright 实现，支持搜索关键词 + 城市，抓取列表页和详情页
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.crawlers.base import BaseCrawler, CrawlerError
 
@@ -39,6 +39,18 @@ class BossZhipinCrawler(BaseCrawler):
         "南京": "101190100",
         "苏州": "101190400",
     }
+
+    def __init__(
+        self,
+        headless: bool = True,
+        delay_range: Tuple[int, int] = (2, 5),
+        cookie_path: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            headless=headless,
+            delay_range=delay_range,
+            cookie_path=cookie_path,
+        )
 
     async def search(
         self,

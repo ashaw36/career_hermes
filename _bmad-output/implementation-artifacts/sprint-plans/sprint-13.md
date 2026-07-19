@@ -62,3 +62,24 @@
 | `tests/test_security.py` | 更新为明文 fallback 场景 |
 
 - 测试：**149 passed** 全部通过
+
+## Patch 2026-07-20 — 数据库 Schema 自动修复 + 学习路径错误处理改进
+
+### 问题
+
+- 用户报告：技能图谱中点击"生成学习路径"没有任何反应，其他入口（简历页缺失技能、学习路径页直接生成）同样无反应
+- 根因：Sprint 12 中 `LearningPath` 模型新增 `source_type` 字段，但用户本地数据库（`~/.careercraft/career.db`）是旧 schema，缺少该列
+- `get_learning_path` 调用 `create_learning_path` 保存时插入失败，`sqlite3.OperationalError: table learning_paths has no column named source_type`
+- 异常被 `api_handler.get_learning_path` 的 try/except 吞掉，静默返回 `[]`，前端显示"暂无学习资源"，用户无法知道发生了什么
+- `main_webview.py` 启动时未调用 `init_db()`，数据库创建/修复被延迟到首次服务访问，无法保证启动时就已完成 schema 更新
+
+### 修复
+
+| 文件 | 变更 |
+|-------|------|
+| `src/models/database.py` | 新增 `SCHEMA_MIGRATIONS` 配置 + `_migrate_schema()` 自动检测并添加缺失列；`init_db()` 在 `create_all` 后自动执行 schema 修复 |
+| `src/main_webview.py` | 启动时调用 `asyncio.run(init_db())`，确保数据库初始化和 schema 修复在第一个窗口显示前完成 |
+| `src/ui/webview/api_handler.py` | `get_learning_path` 去除宽泛 try/except，无角色时抛出 `ValueError`；异常由 bridge 层捕获并返回 `_err`，前端显示具体错误提示 |
+| `tests/ui/webview/test_bridge.py` | `test_get_learning_path_with_skill` 先创建一个角色再测试，避免因无角色而失败 |
+
+- 测试：**149 passed** 全部通过

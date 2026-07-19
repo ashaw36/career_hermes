@@ -539,45 +539,44 @@ class CareerAPI:
     # ——— 学习路径 ———
 
     def get_learning_path(self, skill: str) -> List[Dict[str, Any]]:
-        """获取学习路径，字段名统一为 duration，确保每个资源包含 url"""
-        try:
-            personas = self.get_personas()
-            if not personas:
-                return []
-            persona_id = personas[0].get("id", "")
-            items = AsyncRunner.run(
-                self.learner.recommend_for_gap(
+        """获取学习路径，字段名统一为 duration，确保每个资源包含 url
+
+        异常时直接抛出，由 bridge 层捕获并返回错误 JSON，确保前端能看到具体错误提示。
+        """
+        personas = self.get_personas()
+        if not personas:
+            raise ValueError("尚未创建角色，请先在“角色管理”中创建一个角色后再生成学习路径。")
+        persona_id = personas[0].get("id", "")
+        items = AsyncRunner.run(
+            self.learner.recommend_for_gap(
+                persona_id=persona_id,
+                missing_skills=[skill],
+            )
+        )
+        if items:
+            AsyncRunner.run(
+                self.learner.create_learning_path(
                     persona_id=persona_id,
-                    missing_skills=[skill],
+                    target_gap=skill,
+                    items=items,
+                    source_type="skill_graph",
                 )
             )
-            if items:
-                AsyncRunner.run(
-                    self.learner.create_learning_path(
-                        persona_id=persona_id,
-                        target_gap=skill,
-                        items=items,
-                        source_type="skill_graph",
-                    )
-                )
-            result = []
-            for item in (items or []):
-                if not isinstance(item, dict):
-                    continue
-                normalized = dict(item)
-                # 兼容 estimated_hours / duration
-                if "estimated_hours" in normalized and "duration" not in normalized:
-                    normalized["duration"] = str(normalized.pop("estimated_hours")) + " 小时"
-                # 确保 url 字段存在（从 link 降级复制）
-                if "url" not in normalized and "link" in normalized:
-                    normalized["url"] = normalized.pop("link")
-                if "url" not in normalized:
-                    normalized["url"] = ""
-                result.append(normalized)
-            return result
-        except Exception as e:
-            logger.error(f"get_learning_path error: {e}")
-            return []
+        result = []
+        for item in (items or []):
+            if not isinstance(item, dict):
+                continue
+            normalized = dict(item)
+            # 兼容 estimated_hours / duration
+            if "estimated_hours" in normalized and "duration" not in normalized:
+                normalized["duration"] = str(normalized.pop("estimated_hours")) + " 小时"
+            # 确保 url 字段存在（从 link 降级复制）
+            if "url" not in normalized and "link" in normalized:
+                normalized["url"] = normalized.pop("link")
+            if "url" not in normalized:
+                normalized["url"] = ""
+            result.append(normalized)
+        return result
 
     def get_learning_paths_by_source(
         self, persona_id: str = ""

@@ -125,6 +125,13 @@ class TestCareerBridge:
 
     def test_get_learning_path_with_skill(self, bridge: CareerBridge) -> None:
         """getLearningPath 返回学习资源列表"""
+        import asyncio
+        from src.services.persona_engine import PersonaEngine
+
+        # 先创建一个角色，确保 get_learning_path 不因缺少角色而失败
+        pe = PersonaEngine()
+        asyncio.run(pe.create(name="Test PM", identity_statement="Test"))
+
         result = bridge.getLearningPath("Python")
         data: Dict[str, Any] = json.loads(result)
         assert data.get("success") is True

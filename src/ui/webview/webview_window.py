@@ -42,9 +42,13 @@ class CareerWebWindow(QMainWindow):
 
         # 配置 WebEngine 设置
         settings = self.web_view.settings()
-        settings.setAttribute(
-            QWebEngineSettings.WebAttribute.DeveloperExtrasEnabled, True
-        )
+        try:
+            settings.setAttribute(
+                QWebEngineSettings.WebAttribute.DeveloperExtrasEnabled, True
+            )
+        except (AttributeError, TypeError):
+            # 打包后可能不支持 DevTools
+            pass
         settings.setAttribute(
             QWebEngineSettings.WebAttribute.LocalStorageEnabled, True
         )

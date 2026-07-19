@@ -24,6 +24,7 @@ from src.services.job_matcher import JobMatcher
 from src.services.learning_recommender import LearningRecommender
 from src.services.persona_engine import PersonaEngine
 from src.services.resume_builder import ResumeBuilder
+from src.services.skill_graph import SkillGraph
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ class CareerAPI:
         self._learner: Optional[LearningRecommender] = None
         self._job_parser: Optional[Any] = None
         self._jd_reframe: Optional[Any] = None
+        self._skill_graph: Optional[SkillGraph] = None
 
     @property
     def exp_mgr(self) -> ExperienceManager:
@@ -117,6 +119,12 @@ class CareerAPI:
             from src.services.jd_reframe_engine import JDReframeEngine
             self._jd_reframe = JDReframeEngine()
         return self._jd_reframe
+
+    @property
+    def skill_graph(self) -> SkillGraph:
+        if self._skill_graph is None:
+            self._skill_graph = SkillGraph()
+        return self._skill_graph
 
     # ─── 经历 ───
 
@@ -541,6 +549,26 @@ class CareerAPI:
             }
         except Exception as e:
             logger.error(f"chat_refine_resume error: {e}")
+            return {"success": False, "error": str(e)}
+
+    # ─── 技能图谱 ───
+
+    def get_skill_graph(self) -> Dict[str, Any]:
+        """返回完整技能图谱"""
+        try:
+            nodes = self.skill_graph.all_nodes()
+            return {"success": True, "data": nodes}
+        except Exception as e:
+            logger.error(f"get_skill_graph error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def search_skills(self, query: str) -> Dict[str, Any]:
+        """搜索技能"""
+        try:
+            results = self.skill_graph.search(query)
+            return {"success": True, "data": results}
+        except Exception as e:
+            logger.error(f"search_skills error: {e}")
             return {"success": False, "error": str(e)}
 
     # ─── 统计 ───

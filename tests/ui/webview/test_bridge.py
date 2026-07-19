@@ -98,3 +98,28 @@ class TestCareerBridge:
         # 确保不是 \\uXXXX 格式
         assert "\\u5df2" not in result
         assert "已录入" in result or "experiencesCount" in result
+
+    def test_get_skill_graph_returns_json(self, bridge: CareerBridge) -> None:
+        """getSkillGraph 返回有效 JSON并包含 50 个节点"""
+        result = bridge.getSkillGraph()
+        data: Dict[str, Any] = json.loads(result)
+        assert data.get("success") is True
+        assert "data" in data
+        assert isinstance(data["data"], list)
+        assert len(data["data"]) == 50
+
+    def test_search_skills_returns_json(self, bridge: CareerBridge) -> None:
+        """searchSkills 返回搜索结果"""
+        result = bridge.searchSkills("Python")
+        data: Dict[str, Any] = json.loads(result)
+        assert data.get("success") is True
+        assert "data" in data
+        assert isinstance(data["data"], list)
+        assert any(r.get("id") == "python" for r in data["data"])
+
+    def test_search_skills_empty_returns_json(self, bridge: CareerBridge) -> None:
+        """searchSkills 空搜索返回空列表"""
+        result = bridge.searchSkills("")
+        data: Dict[str, Any] = json.loads(result)
+        assert data.get("success") is True
+        assert data["data"] == []

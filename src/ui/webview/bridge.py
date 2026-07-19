@@ -221,6 +221,26 @@ class CareerBridge(QObject):
             logger.error(f"Bridge getLearningPath error: {e}")
             return self._err(str(e))
 
+    # ─── 技能图谱 ───
+
+    @Slot(result=str)
+    def getSkillGraph(self) -> str:
+        try:
+            result = self._api.get_skill_graph()
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge getSkillGraph error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def searchSkills(self, query: str) -> str:
+        try:
+            result = self._api.search_skills(query)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge searchSkills error: {e}")
+            return self._err(str(e))
+
     # ─── 统计 ───
 
     @Slot(result=str)

@@ -1,0 +1,452 @@
+[
+  {
+    "id": "user_research",
+    "name": "用户研究",
+    "category": "product_management",
+    "aliases": ["用户调研", "用户洞察"],
+    "prerequisites": [],
+    "level": 1,
+    "description": "通过访谈、问卷、可用性测试等方法深入理解用户需求与行为"
+  },
+  {
+    "id": "requirement_analysis",
+    "name": "需求分析",
+    "category": "product_management",
+    "aliases": ["需求挖掘", "需求文档"],
+    "prerequisites": ["user_research"],
+    "level": 2,
+    "description": "从用户痛点和业务目标出发，提炼可执行的产品需求"
+  },
+  {
+    "id": "prd_writing",
+    "name": "PRD撰写",
+    "category": "product_management",
+    "aliases": ["产品需求文档", "PRD文档"],
+    "prerequisites": ["requirement_analysis"],
+    "level": 2,
+    "description": "将产品需求转化为结构清晰、可落地的需求文档"
+  },
+  {
+    "id": "user_persona",
+    "name": "用户画像",
+    "category": "product_management",
+    "aliases": [" personas ", "用户角色模型"],
+    "prerequisites": ["user_research"],
+    "level": 2,
+    "description": "基于数据和行为特征构建典型用户模型，指导产品设计"
+  },
+  {
+    "id": "competitive_analysis",
+    "name": "竞品分析",
+    "category": "product_management",
+    "aliases": ["竞争分析", "竞品调研"],
+    "prerequisites": ["user_research"],
+    "level": 2,
+    "description": "系统研究竞争对手产品，发现差异化机会与行业趋势"
+  },
+  {
+    "id": "mvp_validation",
+    "name": "MVP验证",
+    "category": "product_management",
+    "aliases": ["最小可行产品", "产品验证"],
+    "prerequisites": ["requirement_analysis"],
+    "level": 2,
+    "description": "以最小成本构建原型，快速验证市场假设与产品方向"
+  },
+  {
+    "id": "agile_development",
+    "name": "敏捷开发",
+    "category": "product_management",
+    "aliases": ["Scrum", "敏捷实践"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "运用迭代、增量方式推进产品开发，快速响应变化"
+  },
+  {
+    "id": "cross_team_collaboration",
+    "name": "跨团队协同",
+    "category": "product_management",
+    "aliases": ["跨部门协作", "团队协作"],
+    "prerequisites": ["agile_development"],
+    "level": 2,
+    "description": "协调设计、开发、运营等多团队资源，推动项目落地"
+  },
+  {
+    "id": "data_driven_decision",
+    "name": "数据驱动决策",
+    "category": "product_management",
+    "aliases": ["数据决策", "数据化运营"],
+    "prerequisites": ["data_analysis"],
+    "level": 2,
+    "description": "基于数据指标与分析结果做出科学的产品决策"
+  },
+  {
+    "id": "okr_management",
+    "name": "OKR管理",
+    "category": "product_management",
+    "aliases": ["目标管理", "OKR制定"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "设定并跟踪目标与关键结果，对齐团队方向"
+  },
+  {
+    "id": "ab_testing",
+    "name": "A/B测试",
+    "category": "product_management",
+    "aliases": ["分流测试", "对照实验"],
+    "prerequisites": ["data_driven_decision"],
+    "level": 3,
+    "description": "设计并执行对照实验，用统计方法评估产品改动效果"
+  },
+  {
+    "id": "growth_strategy",
+    "name": "增长策略",
+    "category": "product_management",
+    "aliases": ["用户增长", "增长黑客"],
+    "prerequisites": ["data_driven_decision", "ab_testing"],
+    "level": 3,
+    "description": "制定并实施产品增长方案，实现用户与收入的可持续增长"
+  },
+  {
+    "id": "roadmap_planning",
+    "name": "Roadmap规划",
+    "category": "product_management",
+    "aliases": ["产品路线图", "版本规划"],
+    "prerequisites": ["requirement_analysis", "prd_writing"],
+    "level": 3,
+    "description": "制定中长期产品发展路线图，平衡战略与执行节奏"
+  },
+  {
+    "id": "business_model_design",
+    "name": "商业模式设计",
+    "category": "product_management",
+    "aliases": ["商业设计", "盈利模式"],
+    "prerequisites": ["competitive_analysis"],
+    "level": 3,
+    "description": "构建产品的价值创造、传递与获取机制"
+  },
+  {
+    "id": "product_lifecycle",
+    "name": "产品生命周期",
+    "category": "product_management",
+    "aliases": ["生命周期管理", "产品阶段"],
+    "prerequisites": ["roadmap_planning"],
+    "level": 3,
+    "description": "管理产品从引入、成长、成熟到退化的全生命周期策略"
+  },
+  {
+    "id": "python",
+    "name": "Python",
+    "category": "technical",
+    "aliases": ["Python编程", "Py"],
+    "prerequisites": [],
+    "level": 1,
+    "description": "使用Python进行脚本编写、数据处理与自动化开发"
+  },
+  {
+    "id": "sql",
+    "name": "SQL",
+    "category": "technical",
+    "aliases": ["结构化查询语言", "数据库查询"],
+    "prerequisites": [],
+    "level": 1,
+    "description": "编写查询语句从关系型数据库中提取、处理数据"
+  },
+  {
+    "id": "git_collaboration",
+    "name": "Git协作",
+    "category": "technical",
+    "aliases": ["版本控制", "Git工作流"],
+    "prerequisites": [],
+    "level": 1,
+    "description": "使用Git进行代码版本管理与团队协作开发"
+  },
+  {
+    "id": "data_analysis",
+    "name": "数据分析",
+    "category": "technical",
+    "aliases": ["数据分析能力", "定量分析"],
+    "prerequisites": ["sql", "python"],
+    "level": 2,
+    "description": "运用统计方法与工具对数据进行清洗、建模与洞察提取"
+  },
+  {
+    "id": "api_design",
+    "name": "API设计",
+    "category": "technical",
+    "aliases": ["接口设计", "RESTful API"],
+    "prerequisites": ["python"],
+    "level": 2,
+    "description": "设计清晰、可扩展的应用程序接口，支撑前后端协作"
+  },
+  {
+    "id": "docker",
+    "name": "Docker",
+    "category": "technical",
+    "aliases": ["容器化", "容器技术"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "使用容器技术封装应用环境，实现一致部署与快速扩展"
+  },
+  {
+    "id": "frontend_basics",
+    "name": "前端基础",
+    "category": "technical",
+    "aliases": ["Web前端", "HTML/CSS/JS"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "掌握基础前端技术，理解Web页面结构与交互原理"
+  },
+  {
+    "id": "automated_testing",
+    "name": "自动化测试",
+    "category": "technical",
+    "aliases": ["测试自动化", "单元测试"],
+    "prerequisites": ["python"],
+    "level": 2,
+    "description": "编写自动化测试用例，提升代码质量与发布效率"
+  },
+  {
+    "id": "data_visualization",
+    "name": "数据可视化",
+    "category": "technical",
+    "aliases": ["可视化", "图表制作"],
+    "prerequisites": ["data_analysis"],
+    "level": 2,
+    "description": "将复杂数据转化为直观图表，辅助理解与决策"
+  },
+  {
+    "id": "cloud_computing_basics",
+    "name": "云计算基础",
+    "category": "technical",
+    "aliases": ["云服务", "云架构"],
+    "prerequisites": ["docker"],
+    "level": 2,
+    "description": "理解云计算核心概念，使用主流云服务平台部署资源"
+  },
+  {
+    "id": "system_architecture",
+    "name": "系统架构",
+    "category": "technical",
+    "aliases": ["架构设计", "系统设计"],
+    "prerequisites": ["api_design"],
+    "level": 3,
+    "description": "设计高可用、可扩展的系统整体架构与技术方案"
+  },
+  {
+    "id": "machine_learning_basics",
+    "name": "机器学习基础",
+    "category": "technical",
+    "aliases": ["ML基础", "机器学习入门"],
+    "prerequisites": ["python", "data_analysis"],
+    "level": 3,
+    "description": "掌握常见机器学习算法原理与应用场景"
+  },
+  {
+    "id": "etl_pipeline",
+    "name": "ETL流程",
+    "category": "technical",
+    "aliases": ["数据抽取转换加载", "数据管道"],
+    "prerequisites": ["sql", "data_analysis"],
+    "level": 3,
+    "description": "构建数据抽取、转换、加载的自动化流程"
+  },
+  {
+    "id": "llm_applications",
+    "name": "大模型应用",
+    "category": "technical",
+    "aliases": ["LLM应用", "大语言模型"],
+    "prerequisites": ["python", "machine_learning_basics"],
+    "level": 3,
+    "description": "基于大语言模型构建智能应用与业务解决方案"
+  },
+  {
+    "id": "performance_optimization",
+    "name": "性能优化",
+    "category": "technical",
+    "aliases": ["系统优化", "性能调优"],
+    "prerequisites": ["system_architecture"],
+    "level": 3,
+    "description": "定位并优化系统瓶颈，提升响应速度与资源利用率"
+  },
+  {
+    "id": "time_management",
+    "name": "时间管理",
+    "category": "management",
+    "aliases": ["效率管理", "日程规划"],
+    "prerequisites": [],
+    "level": 1,
+    "description": "科学分配与利用时间，提升个人与团队工作效率"
+  },
+  {
+    "id": "communication_skills",
+    "name": "沟通表达",
+    "category": "management",
+    "aliases": ["沟通能力", "有效沟通"],
+    "prerequisites": [],
+    "level": 1,
+    "description": "清晰传递信息，建立良好的工作关系与协作氛围"
+  },
+  {
+    "id": "project_management",
+    "name": "项目管理",
+    "category": "management",
+    "aliases": ["项目推进", "PM能力"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "规划、执行与监控项目进度，确保目标按时达成"
+  },
+  {
+    "id": "upward_management",
+    "name": "向上管理",
+    "category": "management",
+    "aliases": ["管理层沟通", "向上汇报"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "有效管理与上级的关系，争取资源支持与决策认可"
+  },
+  {
+    "id": "priority_management",
+    "name": "优先级排序",
+    "category": "management",
+    "aliases": ["优先级管理", "要事第一"],
+    "prerequisites": ["time_management"],
+    "level": 2,
+    "description": "识别关键任务，合理排序以最大化产出价值"
+  },
+  {
+    "id": "conflict_resolution",
+    "name": "冲突解决",
+    "category": "management",
+    "aliases": ["矛盾处理", "冲突管理"],
+    "prerequisites": ["communication_skills"],
+    "level": 2,
+    "description": "识别并化解团队内外冲突，维护协作效率"
+  },
+  {
+    "id": "presentation_skills",
+    "name": "演讲展示",
+    "category": "management",
+    "aliases": ["公众演讲", "汇报展示"],
+    "prerequisites": ["communication_skills"],
+    "level": 2,
+    "description": "结构化呈现观点，通过演讲影响听众并推动决策"
+  },
+  {
+    "id": "team_management",
+    "name": "团队管理",
+    "category": "management",
+    "aliases": ["带团队", "团队领导"],
+    "prerequisites": ["project_management"],
+    "level": 3,
+    "description": "组建、激励与发展团队，提升整体战斗力"
+  },
+  {
+    "id": "recruitment_interview",
+    "name": "招聘面试",
+    "category": "management",
+    "aliases": ["人才招聘", "面试技巧"],
+    "prerequisites": ["team_management"],
+    "level": 3,
+    "description": "设计面试流程，识别并吸引高匹配度人才"
+  },
+  {
+    "id": "performance_management",
+    "name": "绩效管理",
+    "category": "management",
+    "aliases": ["绩效考核", "绩效评估"],
+    "prerequisites": ["team_management", "okr_management"],
+    "level": 3,
+    "description": "建立绩效体系，评估并提升团队与个人产出"
+  },
+  {
+    "id": "ecommerce_operations",
+    "name": "电商运营",
+    "category": "industry",
+    "aliases": ["电商", "电商平台运营"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "理解电商业务链路，掌握流量、转化与复购运营方法"
+  },
+  {
+    "id": "privacy_compliance",
+    "name": "隐私合规",
+    "category": "industry",
+    "aliases": ["数据合规", "隐私保护"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "理解隐私法规要求，确保产品数据处理合规"
+  },
+  {
+    "id": "b2b_sales",
+    "name": "B2B销售",
+    "category": "industry",
+    "aliases": ["企业销售", "大客户销售"],
+    "prerequisites": [],
+    "level": 2,
+    "description": "面向企业客户的销售流程管理与商机转化"
+  },
+  {
+    "id": "content_product",
+    "name": "内容产品",
+    "category": "industry",
+    "aliases": ["内容运营", "UGC/PGC"],
+    "prerequisites": ["user_research"],
+    "level": 2,
+    "description": "设计内容生产、分发与消费的产品机制"
+  },
+  {
+    "id": "saas_business_model",
+    "name": "SaaS商业模式",
+    "category": "industry",
+    "aliases": ["SaaS", "订阅模式"],
+    "prerequisites": ["business_model_design"],
+    "level": 2,
+    "description": "理解SaaS产品的订阅、续费与ARR增长逻辑"
+  },
+  {
+    "id": "customer_success",
+    "name": "客户成功",
+    "category": "industry",
+    "aliases": ["CSM", "客户留存"],
+    "prerequisites": ["b2b_sales"],
+    "level": 2,
+    "description": "通过主动服务帮助客户实现价值，提升留存与增购"
+  },
+  {
+    "id": "fintech_basics",
+    "name": "金融科技基础",
+    "category": "industry",
+    "aliases": ["FinTech", "金融数字化"],
+    "prerequisites": ["data_analysis"],
+    "level": 3,
+    "description": "理解金融业务与科技融合的核心场景与监管要求"
+  },
+  {
+    "id": "platform_governance",
+    "name": "平台治理",
+    "category": "industry",
+    "aliases": ["内容治理", "风控策略"],
+    "prerequisites": ["content_product"],
+    "level": 3,
+    "description": "建立规则与机制，维护平台生态健康与用户体验"
+  },
+  {
+    "id": "supply_chain_digital",
+    "name": "供应链数字化",
+    "category": "industry",
+    "aliases": ["数字供应链", "供应链系统"],
+    "prerequisites": ["saas_business_model"],
+    "level": 3,
+    "description": "运用数字化手段优化供应链计划、采购与履约效率"
+  },
+  {
+    "id": "international_expansion",
+    "name": "国际化拓展",
+    "category": "industry",
+    "aliases": ["出海", "全球化"],
+    "prerequisites": ["business_model_design"],
+    "level": 3,
+    "description": "制定并执行产品进入海外市场的本地化与增长策略"
+  }
+]

@@ -65,8 +65,40 @@ class TestCareerBridge:
         """generateResume 对空 ID 返回错误"""
         result = bridge.generateResume("")
         data: Dict[str, Any] = json.loads(result)
-        # 空 ID 应该失败
         assert data.get("success") is False or "error" in data or "markdown" in data
+
+    def test_generate_resume_with_template(self, bridge: CareerBridge) -> None:
+        """generateResume 支持模板参数"""
+        result = bridge.generateResume("", "classic")
+        data: Dict[str, Any] = json.loads(result)
+        assert "success" in data
+
+    def test_export_resume_pdf_returns_json(self, bridge: CareerBridge) -> None:
+        """exportResumePDF 返回有效 JSON"""
+        result = bridge.exportResumePDF("")
+        data: Dict[str, Any] = json.loads(result)
+        assert data.get("success") is True
+        assert "data" in data or "message" in data
+
+    def test_save_settings_returns_json(self, bridge: CareerBridge) -> None:
+        """saveSettings 保存设置并返回结果"""
+        payload: Dict[str, Any] = {"model": "gpt-4o", "api_key": "sk-test"}
+        result = bridge.saveSettings(json.dumps(payload))
+        data: Dict[str, Any] = json.loads(result)
+        assert data.get("success") is True
+
+    def test_test_llm_connection_returns_json(self, bridge: CareerBridge) -> None:
+        """testLLMConnection 返回连接状态"""
+        result = bridge.testLLMConnection()
+        data: Dict[str, Any] = json.loads(result)
+        assert "connected" in data or data.get("success") is True
+
+    def test_import_experiences_returns_json(self, bridge: CareerBridge) -> None:
+        """importExperiences 导入经历返回结果"""
+        payload: Dict[str, Any] = {"content": "# 工作经历\n\n### 测试公司 | 产品经理\n2020.01 - 2023.06\n\n- 负责产品规划\n"}
+        result = bridge.importExperiences("markdown", json.dumps(payload))
+        data: Dict[str, Any] = json.loads(result)
+        assert "success" in data
 
     def test_parse_jd_with_sample_text(self, bridge: CareerBridge) -> None:
         """parseJD 接受 JD 文本并返回解析结果"""

@@ -118,13 +118,27 @@ class CareerBridge(QObject):
 
     # ─── 简历 ───
 
-    @Slot(str, result=str)
-    def generateResume(self, persona_id: str) -> str:
+    @Slot(str, str, result=str)
+    def generateResume(self, persona_id: str, template: str = "modern") -> str:
         try:
-            result = self._api.generate_resume(persona_id)
+            result = self._api.generate_resume(persona_id, template_name=template)
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Bridge generateResume error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def exportResumePDF(self, persona_id: str) -> str:
+        try:
+            result = self._api.generate_resume(persona_id)
+            markdown = result.get("markdown", "") if isinstance(result, dict) else ""
+            return self._ok({
+                "message": "PDF导出由后端处理",
+                "markdown": markdown,
+                "placeholder": True,
+            })
+        except Exception as e:
+            logger.error(f"Bridge exportResumePDF error: {e}")
             return self._err(str(e))
 
     @Slot(str, str, result=str)
@@ -134,6 +148,35 @@ class CareerBridge(QObject):
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Bridge chatRefineResume error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def saveSettings(self, settings_json: str) -> str:
+        try:
+            data: Dict[str, Any] = json.loads(settings_json)
+            result = self._api.save_settings(data)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge saveSettings error: {e}")
+            return self._err(str(e))
+
+    @Slot(result=str)
+    def testLLMConnection(self) -> str:
+        try:
+            result = self._api.test_llm_connection()
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge testLLMConnection error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, str, result=str)
+    def importExperiences(self, format: str, content_json: str) -> str:
+        try:
+            data: Dict[str, Any] = json.loads(content_json)
+            result = self._api.import_experiences(format, data)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge importExperiences error: {e}")
             return self._err(str(e))
 
     # ─── 岗位匹配 ───

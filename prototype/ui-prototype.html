@@ -717,6 +717,14 @@
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
           <span>岗位匹配</span>
         </button>
+        <button class="nav-item" onclick="switchPage('skills')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>
+          <span>技能图谱</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('learning')">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+          <span>学习路径</span>
+        </button>
       </div>
 
       <div class="nav-section">
@@ -745,8 +753,8 @@
             <h1>CareerCraft Agent</h1>
             <p>角色档案驱动的职业智能体。管理经历、构建角色、生成简历、匹配岗位 — 全部在一个工作流中完成。</p>
             <div class="welcome-actions">
-              <button class="btn btn-primary">开始录入经历</button>
-              <button class="btn btn-ghost">查看角色档案</button>
+              <button class="btn btn-primary" onclick="switchPage('experiences')">开始录入经历</button>
+              <button class="btn btn-ghost" onclick="switchPage('personas')">查看角色档案</button>
             </div>
           </div>
 
@@ -786,7 +794,30 @@
               <div class="toolbar">
                 <span class="section-title">经历库</span>
                 <div class="toolbar-spacer"></div>
+                <button class="btn btn-ghost btn-sm" onclick="toggleImportPanel()">批量导入</button>
                 <button class="btn btn-primary btn-sm" onclick="newExperience()">+ 新建</button>
+              </div>
+              <div id="import-panel" style="display: none; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-standard); border-radius: var(--radius-md);">
+                <div class="form-group">
+                  <label class="form-label">格式</label>
+                  <select class="form-select" id="import-format" style="width: 160px;">
+                    <option value="markdown">Markdown</option>
+                    <option value="text">纯文本</option>
+                    <option value="json">JSON</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">粘贴内容</label>
+                  <textarea class="form-textarea" id="import-content" rows="6" placeholder="在此粘贴经历内容..."></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">或选择文件 (.md, .txt, .json)</label>
+                  <input type="file" id="import-file" accept=".md,.txt,.json" style="color: var(--text-secondary); font-size: 13px;" onchange="handleImportFile(this)">
+                </div>
+                <div class="toolbar" style="margin-bottom: 0;">
+                  <button class="btn btn-primary btn-sm" onclick="submitImport()">开始导入</button>
+                  <button class="btn btn-ghost btn-sm" onclick="toggleImportPanel()">取消</button>
+                </div>
               </div>
               <div class="exp-list" id="exp-list-container">
                 <div style="color: var(--text-tertiary); padding: 24px; text-align: center;">加载中...</div>
@@ -903,9 +934,16 @@
             <select class="form-select" id="resume-persona-select" style="width: 160px;">
               <option value="">加载中...</option>
             </select>
+            <select class="form-select" id="resume-template-select" style="width: 120px;">
+              <option value="modern">modern</option>
+              <option value="classic">classic</option>
+              <option value="minimal">minimal</option>
+              <option value="tech">tech</option>
+              <option value="外企">外企</option>
+            </select>
             <button class="btn btn-primary btn-sm" onclick="generateResumeForSelectedPersona()">生成简历</button>
-            <button class="btn btn-ghost btn-sm">导出 Markdown</button>
-            <button class="btn btn-primary btn-sm">导出 PDF</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportResumeMarkdown()">导出 Markdown</button>
+            <button class="btn btn-primary btn-sm" onclick="exportResumePDF()">导出 PDF</button>
           </div>
           <div class="grid-2">
             <div>
@@ -927,7 +965,7 @@
                 <div style="margin-top: 10px;" id="resume-missing-skills">
                   <span class="pill">请先生成简历</span>
                 </div>
-                <button class="btn btn-primary" style="margin-top: 14px; width: 100%;">生成学习路径</button>
+                <button class="btn btn-primary" style="margin-top: 14px; width: 100%;" onclick="goToLearningPath()">生成学习路径</button>
               </div>
               <!-- 对话式调优 -->
               <div class="card" style="margin-bottom: 12px;">
@@ -1001,19 +1039,19 @@
               <div style="margin-top: 16px;">
                 <div class="form-group">
                   <label class="form-label">默认模型</label>
-                  <select class="form-select">
-                    <option>gpt-4o</option>
-                    <option>claude-3-5-sonnet</option>
-                    <option>qwen-turbo</option>
+                  <select class="form-select" id="settings-model">
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+                    <option value="qwen-turbo">qwen-turbo</option>
                   </select>
                 </div>
                 <div class="form-group">
                   <label class="form-label">API Key</label>
-                  <input class="form-input" type="password" value="sk-••••••••••••••">
+                  <input class="form-input" id="settings-api-key" type="password" placeholder="sk-...">
                 </div>
                 <div class="toolbar">
-                  <button class="btn btn-primary">保存配置</button>
-                  <button class="btn btn-ghost">测试连接</button>
+                  <button class="btn btn-primary" onclick="saveSettings()">保存配置</button>
+                  <button class="btn btn-ghost" onclick="testLLMConnection()">测试连接</button>
                 </div>
               </div>
             </div>
@@ -1038,6 +1076,41 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        <!-- Skills Page -->
+        <div class="page" id="page-skills">
+          <div class="toolbar">
+            <span class="section-title">技能图谱</span>
+            <div class="toolbar-spacer"></div>
+            <input class="form-input" id="skill-search" type="text" placeholder="搜索技能..." style="width: 200px;" oninput="searchSkillsRealtime(this.value)">
+            <select class="form-select" id="skill-category-filter" style="width: 120px;" onchange="filterSkillsByCategory()">
+              <option value="">全部</option>
+              <option value="产品">产品</option>
+              <option value="技术">技术</option>
+              <option value="管理">管理</option>
+              <option value="行业">行业</option>
+            </select>
+          </div>
+          <div id="skills-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
+            <div style="color: var(--text-tertiary); padding: 24px; text-align: center; grid-column: 1 / -1;">加载中...</div>
+          </div>
+          <div id="skill-detail-panel" class="card" style="margin-top: 16px; display: none;">
+            <div class="card-title" id="skill-detail-title">关联技能</div>
+            <div id="skill-detail-content" style="margin-top: 10px;"></div>
+          </div>
+        </div>
+
+        <!-- Learning Page -->
+        <div class="page" id="page-learning">
+          <div class="toolbar">
+            <span class="section-title">学习路径</span>
+            <div class="toolbar-spacer"></div>
+            <input class="form-input" id="learning-skill-input" type="text" placeholder="输入技能名称..." style="width: 200px;">
+            <button class="btn btn-primary btn-sm" onclick="generateLearningPath()">生成路径</button>
+          </div>
+          <div id="learning-resources-container">
+            <div style="color: var(--text-tertiary); padding: 24px; text-align: center;">输入技能名称并点击「生成路径」</div>
           </div>
         </div>
       </div>
@@ -1127,17 +1200,18 @@
       if (navEl) {
         navEl.classList.add('active');
       } else {
-        var map = {welcome:0, experiences:1, personas:2, resume:3, jobs:4, settings:5};
+        var map = {welcome:0, experiences:1, personas:2, resume:3, jobs:4, skills:5, learning:6, settings:7};
         var items = document.querySelectorAll('.nav-item');
         if (items[map[pageId]]) items[map[pageId]].classList.add('active');
       }
-      var titles = {welcome: '欢迎', experiences: '经历库', personas: '角色档案', resume: '简历生成', jobs: '岗位匹配', settings: '设置'};
+      var titles = {welcome: '欢迎', experiences: '经历库', personas: '角色档案', resume: '简历生成', jobs: '岗位匹配', skills: '技能图谱', learning: '学习路径', settings: '设置'};
       document.getElementById('page-title').textContent = titles[pageId];
-      // 页面切换时触发加载
       if (pageId === 'experiences') loadExperiencesFromBridge();
       if (pageId === 'personas') loadPersonasFromBridge();
       if (pageId === 'resume') loadResumePage();
       if (pageId === 'jobs') { loadPersonasForJobs(); loadJobs(); }
+      if (pageId === 'skills') loadSkillsPage();
+      if (pageId === 'learning') loadLearningPage();
     }
 
     function updateStats(data) {
@@ -1378,12 +1452,11 @@
 
     function loadResumePage() {
       if (!window.pybridge) return;
-      // 动态填充角色选择框
       window.pybridge.getPersonas(function(result) {
         try {
           var resp = JSON.parse(result);
           if (!resp.success) return;
-          var select = document.querySelector('#page-resume select.form-select');
+          var select = document.getElementById('resume-persona-select');
           if (!select) return;
           var current = select.value;
           select.innerHTML = '';
@@ -1399,14 +1472,81 @@
       });
     }
 
-    function generateResumeForSelectedPersona() {
-      var select = document.querySelector('#page-resume select.form-select');
+    function exportResumeMarkdown() {
+      var select = document.getElementById('resume-persona-select');
       if (!select || !select.value) { showError('请先选择角色', ''); return; }
+      if (!window.pybridge) return;
+      var templateSelect = document.getElementById('resume-template-select');
+      var template = templateSelect ? templateSelect.value : 'modern';
+      window.pybridge.generateResume(select.value, template, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success && resp.markdown) {
+            var blob = new Blob([resp.markdown], {type: 'text/markdown'});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = '简历_' + select.value + '.md';
+            a.click();
+            URL.revokeObjectURL(url);
+          } else {
+            showError('导出失败', resp.error || '');
+          }
+        } catch (e) { showError('导出错误', ''); }
+      });
+    }
+
+    function exportResumePDF() {
+      var select = document.getElementById('resume-persona-select');
+      if (!select || !select.value) { showError('请先选择角色', ''); return; }
+      if (!window.pybridge) return;
+      window.pybridge.exportResumePDF(select.value, function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            var md = resp.data && resp.data.markdown ? resp.data.markdown : (resp.markdown || '');
+            if (md) {
+              var blob = new Blob([md], {type: 'text/plain'});
+              var url = URL.createObjectURL(blob);
+              var a = document.createElement('a');
+              a.href = url;
+              a.download = '简历_' + select.value + '_PDF占位.txt';
+              a.click();
+              URL.revokeObjectURL(url);
+            } else {
+              showError('PDF导出', resp.data && resp.data.message ? resp.data.message : '暂无内容');
+            }
+          } else {
+            showError('PDF导出失败', resp.error || '');
+          }
+        } catch (e) { showError('PDF导出错误', ''); }
+      });
+    }
+
+    function goToLearningPath() {
+      var missingContainer = document.getElementById('resume-missing-skills');
+      var firstSkill = '';
+      if (missingContainer) {
+        var pills = missingContainer.querySelectorAll('.pill');
+        if (pills.length > 0) firstSkill = pills[0].textContent.trim();
+      }
+      switchPage('learning');
+      if (firstSkill) {
+        document.getElementById('learning-skill-input').value = firstSkill;
+        generateLearningPath();
+      }
+    }
+
+    function generateResumeForSelectedPersona() {
+      var select = document.getElementById('resume-persona-select');
+      if (!select || !select.value) { showError('请先选择角色', ''); return; }
+      var templateSelect = document.getElementById('resume-template-select');
+      var template = templateSelect ? templateSelect.value : 'modern';
       if (!window.pybridge) return;
       var preview = document.querySelector('#page-resume .resume-preview');
       if (preview) preview.innerHTML = '<div style="color: var(--text-tertiary);">生成中...</div>';
       showLoading('正在生成简历...');
-      window.pybridge.generateResume(select.value, function(result) {
+      window.pybridge.generateResume(select.value, template, function(result) {
         hideLoading();
         try {
           var resp = JSON.parse(result);
@@ -1888,6 +2028,243 @@
           container.innerHTML = html;
         } catch (e) { console.error('getReframeResults error', e); }
       });
+    }
+
+    /* ─── Settings ─── */
+    function saveSettings() {
+      var model = document.getElementById('settings-model').value;
+      var apiKey = document.getElementById('settings-api-key').value;
+      var payload = {model: model, api_key: apiKey};
+      if (!window.pybridge) return;
+      window.pybridge.saveSettings(JSON.stringify(payload), function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            alert('配置已保存');
+          } else {
+            alert('保存失败: ' + (resp.error || ''));
+          }
+        } catch (e) { alert('保存错误'); }
+      });
+    }
+
+    function testLLMConnection() {
+      if (!window.pybridge) return;
+      showLoading('测试 LLM 连接中...');
+      window.pybridge.testLLMConnection(function(result) {
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.connected) {
+            alert('连接成功: ' + (resp.message || ''));
+          } else {
+            alert('连接失败: ' + (resp.message || ''));
+          }
+        } catch (e) { alert('测试错误'); }
+      });
+    }
+
+    /* ─── Import Panel ─── */
+    function toggleImportPanel() {
+      var panel = document.getElementById('import-panel');
+      if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function handleImportFile(input) {
+      var file = input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('import-content').value = e.target.result;
+        var ext = file.name.split('.').pop().toLowerCase();
+        var formatSelect = document.getElementById('import-format');
+        if (ext === 'md') formatSelect.value = 'markdown';
+        else if (ext === 'json') formatSelect.value = 'json';
+        else formatSelect.value = 'text';
+      };
+      reader.readAsText(file);
+    }
+
+    function submitImport() {
+      var format = document.getElementById('import-format').value;
+      var content = document.getElementById('import-content').value.trim();
+      if (!content) { alert('请粘贴内容或选择文件'); return; }
+      if (!window.pybridge) return;
+      showLoading('正在导入...');
+      window.pybridge.importExperiences(format, JSON.stringify({content: content}), function(result) {
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            alert('导入成功，共 ' + (resp.count || 0) + ' 条经历');
+            document.getElementById('import-content').value = '';
+            document.getElementById('import-file').value = '';
+            toggleImportPanel();
+            loadExperiencesFromBridge();
+          } else {
+            alert('导入失败: ' + (resp.error || ''));
+          }
+        } catch (e) { hideLoading(); alert('导入错误'); }
+      });
+    }
+
+    /* ─── Skills Page ─── */
+    var gSkills = [];
+    var gFilteredSkills = [];
+
+    function loadSkillsPage() {
+      if (!window.pybridge) return;
+      window.pybridge.getSkillGraph(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            gSkills = resp.data || [];
+            gFilteredSkills = gSkills.slice();
+            renderSkills(gFilteredSkills);
+          }
+        } catch (e) { console.error('getSkillGraph error', e); }
+      });
+    }
+
+    function renderSkills(list) {
+      var container = document.getElementById('skills-container');
+      if (!container) return;
+      container.innerHTML = '';
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="color: var(--text-tertiary); padding: 24px; text-align: center; grid-column: 1 / -1;">暂无技能数据</div>';
+        return;
+      }
+      list.forEach(function(skill) {
+        var card = document.createElement('div');
+        card.className = 'card';
+        card.style.cursor = 'pointer';
+        card.onclick = function() { showSkillDetail(skill); };
+        var prereqs = (skill.prerequisites || []).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('');
+        card.innerHTML =
+          '<div class="card-title">' + escapeHtml(skill.name || skill.id || '') + '</div>' +
+          '<div style="margin-top: 6px;"><span class="pill pill-accent">' + escapeHtml(skill.category || '未分类') + '</span></div>' +
+          '<div style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">' + escapeHtml(skill.description || '') + '</div>' +
+          (prereqs ? '<div style="margin-top: 10px;"><div style="font-size: 11px; color: var(--text-quaternary); margin-bottom: 4px;">前置技能</div>' + prereqs + '</div>' : '');
+        container.appendChild(card);
+      });
+    }
+
+    function searchSkillsRealtime(query) {
+      if (!query.trim()) {
+        gFilteredSkills = gSkills.slice();
+      } else if (window.pybridge) {
+        window.pybridge.searchSkills(query, function(result) {
+          try {
+            var resp = JSON.parse(result);
+            if (resp.success) {
+              gFilteredSkills = resp.data || [];
+              filterSkillsByCategory(false);
+            }
+          } catch (e) { console.error('searchSkills error', e); }
+        });
+        return;
+      }
+      filterSkillsByCategory(false);
+    }
+
+    function filterSkillsByCategory(shouldRender) {
+      if (shouldRender !== false) shouldRender = true;
+      var cat = document.getElementById('skill-category-filter').value;
+      var list = gFilteredSkills;
+      if (cat) {
+        list = list.filter(function(s) { return (s.category || '').indexOf(cat) !== -1; });
+      }
+      if (shouldRender) renderSkills(list);
+    }
+
+    function showSkillDetail(skill) {
+      var panel = document.getElementById('skill-detail-panel');
+      var title = document.getElementById('skill-detail-title');
+      var content = document.getElementById('skill-detail-content');
+      if (!panel || !content) return;
+      panel.style.display = 'block';
+      title.textContent = (skill.name || skill.id || '') + ' — 关联技能';
+      var related = (skill.related || skill.connected || []);
+      if (!related.length) {
+        content.innerHTML = '<div style="color: var(--text-tertiary); font-size: 13px;">暂无关联技能</div>';
+        return;
+      }
+      var html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+      related.forEach(function(r) {
+        var name = typeof r === 'string' ? r : (r.name || r.id || '');
+        html += '<span class="pill">' + escapeHtml(name) + '</span>';
+      });
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    /* ─── Learning Page ─── */
+    function loadLearningPage() {
+      // 加载已保存的状态
+      renderLearningResources(window._learningResources || []);
+    }
+
+    function generateLearningPath() {
+      var input = document.getElementById('learning-skill-input');
+      var skill = input ? input.value.trim() : '';
+      if (!skill) { showError('请输入技能名称', ''); return; }
+      if (!window.pybridge) return;
+      showLoading('正在生成学习路径...');
+      window.pybridge.getLearningPath(skill, function(result) {
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            window._learningResources = resp.data || [];
+            renderLearningResources(window._learningResources);
+          } else {
+            showError('生成失败', resp.error || '');
+          }
+        } catch (e) { hideLoading(); showError('生成错误', ''); }
+      });
+    }
+
+    function renderLearningResources(list) {
+      var container = document.getElementById('learning-resources-container');
+      if (!container) return;
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="color: var(--text-tertiary); padding: 24px; text-align: center;">暂无学习资源</div>';
+        return;
+      }
+      var html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+      var statuses = getLearningStatuses();
+      list.forEach(function(item, idx) {
+        var status = statuses[item.title || idx] || '未开始';
+        var statusClass = status === '已完成' ? 'pill-success' : (status === '学习中' ? 'pill-accent' : '');
+        html +=
+          '<div class="card" style="margin-bottom: 0;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
+              '<div>' +
+                '<div class="card-title" style="font-size: 14px;">' + escapeHtml(item.title || '') + '</div>' +
+                '<div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">' + escapeHtml(item.type || '') + ' · ' + escapeHtml(item.duration || '') + ' · 优先级: ' + escapeHtml(String(item.priority || '')) + '</div>' +
+              '</div>' +
+              '<select class="form-select" style="width: 100px; font-size: 12px;" onchange="updateLearningStatus(' + JSON.stringify(item.title || String(idx)) + ', this.value)">' +
+                '<option value="未开始" ' + (status==='未开始'?'selected':'') + '>未开始</option>' +
+                '<option value="学习中" ' + (status==='学习中'?'selected':'') + '>学习中</option>' +
+                '<option value="已完成" ' + (status==='已完成'?'selected':'') + '>已完成</option>' +
+              '</select>' +
+            '</div>' +
+          '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function getLearningStatuses() {
+      try {
+        return JSON.parse(localStorage.getItem('careercraft_learning_status') || '{}');
+      } catch (e) { return {}; }
+    }
+
+    function updateLearningStatus(title, status) {
+      var statuses = getLearningStatuses();
+      statuses[title] = status;
+      localStorage.setItem('careercraft_learning_status', JSON.stringify(statuses));
     }
 
     /* ─── Page init ─── */

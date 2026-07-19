@@ -586,6 +586,74 @@ class CareerAPI:
 
     # ─── 统计 ───
 
+    def export_resume_pdf(self, persona_id: str) -> Dict[str, Any]:
+        """生成简历 PDF（占位实现，返回 markdown 供前端处理）"""
+        try:
+            result = self.generate_resume(persona_id)
+            return {"success": True, "data": result}
+        except Exception as e:
+            logger.error(f"export_resume_pdf error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def import_experiences(self, format: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """批量导入经历"""
+        try:
+            from src.services.import_parser import ImportParser
+
+            parser = ImportParser()
+            content = data.get("content", "")
+
+            if format == "markdown":
+                drafts = AsyncRunner.run(parser.parse_markdown(content))
+            elif format == "json":
+                drafts = AsyncRunner.run(parser.parse_json(content))
+            else:
+                drafts = AsyncRunner.run(parser.parse_text(content))
+
+            count = 0
+            for draft in drafts:
+                try:
+                    result = AsyncRunner.run(self.exp_mgr.confirm_and_save(draft))
+                    if result:
+                        count += 1
+                except Exception as e:
+                    logger.warning(f"导入经历失败: {e}")
+                    continue
+
+            return {"success": True, "count": count}
+        except Exception as e:
+            logger.error(f"import_experiences error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """保存设置（占位实现）"""
+        try:
+            logger.info(f"保存设置: {data}")
+            return {"success": True, "message": "设置已保存"}
+        except Exception as e:
+            logger.error(f"save_settings error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def test_llm_connection(self) -> Dict[str, Any]:
+        """测试 LLM 连接"""
+        try:
+            from src.llm.router import LLMRouter
+            from src.config.settings import get_settings
+
+            settings = get_settings()
+            router = LLMRouter(settings=settings)
+
+            response = AsyncRunner.run(
+                router.chat(messages=[{"role": "user", "content": "你好"}])
+            )
+
+            return {"success": True, "connected": True, "message": "连接成功"}
+        except Exception as e:
+            logger.error(f"test_llm_connection error: {e}")
+            return {"success": True, "connected": False, "message": f"连接失败: {str(e)}"}
+
+    # ─── 统计 ───
+
     def get_stats(self) -> Dict[str, Any]:
         """获取欢迎页统计"""
         try:

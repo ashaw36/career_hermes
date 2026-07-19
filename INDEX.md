@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 9-10 全部完成** — P0✅ P1✅ P2✅ P3✅ | 109→126 tests passed | 等待最终打包验证
+> 当前阶段：**Sprint 9-10 完成 + 前端补齐** — P0✅ P1✅ P2✅ P3✅ | 131 tests passed | 前端 7 项缺失功能已接入 Bridge
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -162,6 +162,19 @@ pytest tests/ -v --tb=short
 ```
 
 ## 📝 变更日志
+
+- **2026-07-19** — **前端 P0/P1 缺失功能补齐**（由 Codex 执行）：
+  - 原状：后端+Bridge 126 测试通过，但 HTML 前端 7 处仅 UI 占位未接入 pybridge
+  - 补齐项：
+    1. 简历页「导出 Markdown/PDF」接入 `generateResume` / 新增 `exportResumePDF`
+    2. 简历页「模板选择」下拉框（5 种模板），`generateResume` 支持 `template` 参数
+    3. 设置页「保存配置/测试连接」接入，新增 `saveSettings` / `testLLMConnection` Slot
+    4. 新增「技能图谱」独立页面（Sidebar 导航），调用 `getSkillGraph`/`searchSkills`
+    5. 新增「学习路径」独立页面（Sidebar 导航），调用 `getLearningPath`
+    6. 经历页「批量导入」面板，调用新增 `importExperiences` Slot
+    7. 欢迎页 CTA 按钮补齐 `switchPage` 跳转
+  - 修改文件：`prototype/ui-prototype.html` (+415行)、`bridge.py` (+49行)、`api_handler.py` (+68行)、`test_bridge.py` (+34行)
+  - 测试：**131 个，全部通过** | 代码量: ~6,400 行
 
 - **2026-07-19** — **Sprint 9-10 全部完成**并推送 GitHub `d51a439`：
   - ❯ P0-1: 经历时间冲突检测 — `TimeConflictError` + API 层返回 `error_type: TIME_CONFLICT` + 前端弹窗

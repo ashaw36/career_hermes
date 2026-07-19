@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 9-10 完成 + 前端补齐 + 文件导入自动分析验收 + 技能图谱学习路径交互优化** — P0✅ P1✅ P2✅ P3✅ | 149 tests passed | 前端 7 项缺失功能已接入 Bridge | 文件导入 E2E 验收通过 | 技能图谱弹窗+学习路径链接已优化
+> 当前阶段：**Sprint 12 完成 — 学习资源体系完善** — P0✅ P1✅ P2✅ P3✅ | 149 tests passed | 51 技能节点全部有真实学习资源 | 学习路径来源分类二级菜单 | WebView 外部链接系统浏览器打开
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -51,7 +51,8 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || **Sprint 6 (Week 11-12)** | ✅ 已完成 | GUI完善（经历/角色/简历/岗位页面）、Polish、测试补齐 |
 |||| **Sprint 7-8 (Week 15-18)** | ✅ 已完成 | 岗位匹配增强+JD修饰、WebView全页面动态化、e2e测试补齐、BMAD文档更新 |
 |||| **Sprint 9-10 (Week 19-22)** | ✅ 已完成 | P0✅ P1✅ P2✅ P3✅ | 126测试通过 |
-|||| **Sprint 11 (Week 23-24)** | ✅ 已完成 | PDF导出 + Fit Score覆盖 + 重述编辑重置 | 149测试通过 |
+||||| **Sprint 11 (Week 23-24)** | ✅ 已完成 | PDF导出 + Fit Score覆盖 + 重述编辑重置 | 149测试通过 |
+||||| **Sprint 12 (Week 25-26)** | ✅ 已完成 | 51技能节点资源补充 + 学习路径真实链接 + 来源分类 + WebView外部跳转 | 149测试通过 |
 
 ## 📁 核心文件清单
 
@@ -156,6 +157,16 @@ pytest tests/ -v --tb=short
 ```
 
 ## 📝 变更日志
+
+- **2026-07-19** — **Sprint 12 完成 — 学习资源体系完善** (`c0b70d0`)：
+  - 子代理并行搜索 51 个技能节点优质学习资源（GitHub/bilibili/官方文档/知乎/豆瓣读书/Coursera），编入 `skill_graph.json`
+  - SkillNode 模型新增 `resources` JSON 字段，替代原单个 `learning_url`
+  - LearningPath 模型新增 `source_type` 字段（jd_gap / skill_graph / manual）
+  - LearningRecommender 优先从 skill_graph 读取 resources 生成带真实链接的学习路径，再 LLM，再 fallback
+  - 前端学习路径页面增加来源分类二级菜单（全部/技能图谱/JD补充/手动创建）+刷新列表
+  - WebView 外部链接跳转：子类化 ExternalLinkPage(QWebEnginePage)，拦截 target="_blank" 用系统浏览器打开
+  - 技能详情弹窗展示 resources 列表（标题/类型/来源/时长/链接）
+  - 测试：**149 passed** 全部通过
 
 - **2026-07-19** — **删除原生 PySide6 GUI，只保留 WebView**：
   - 删除文件：`src/main.py` (41行)、`src/ui/main_window.py` (243行)、`src/ui/pages/*` (共2,108行)

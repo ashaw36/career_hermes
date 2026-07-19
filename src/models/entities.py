@@ -141,6 +141,7 @@ class SkillNode(Base):
         String(36), ForeignKey("skill_nodes.id", ondelete="SET NULL"), nullable=True
     )
     aliases: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    resources: Mapped[Optional[List[dict]]] = mapped_column(JSON, nullable=True)
     vector_embedding: Mapped[Optional[bytes]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -262,6 +263,9 @@ class LearningPath(Base):
     )
     target_gap: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     items: Mapped[Optional[List[dict]]] = mapped_column(JSON, nullable=True)
+    source_type: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True, default="manual"
+    )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active"
     )  # active, completed, archived

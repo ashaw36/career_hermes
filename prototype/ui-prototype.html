@@ -1228,8 +1228,15 @@
             <input class="form-input" id="learning-skill-input" type="text" placeholder="输入技能名称..." style="width: 200px;">
             <button class="btn btn-primary btn-sm" onclick="generateLearningPath()">生成路径</button>
           </div>
+          <div style="display: flex; gap: 8px; margin: 0 0 16px 0; flex-wrap: wrap;">
+            <button class="btn btn-ghost btn-sm" id="lp-filter-all" onclick="filterLearningPaths('all')" style="font-weight: 600; background: var(--bg-tertiary);">全部来源</button>
+            <button class="btn btn-ghost btn-sm" id="lp-filter-skill_graph" onclick="filterLearningPaths('skill_graph')">技能图谱</button>
+            <button class="btn btn-ghost btn-sm" id="lp-filter-jd_gap" onclick="filterLearningPaths('jd_gap')">JD 补充</button>
+            <button class="btn btn-ghost btn-sm" id="lp-filter-manual" onclick="filterLearningPaths('manual')">手动创建</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadLearningPathsBySource()">刷新列表</button>
+          </div>
           <div id="learning-resources-container">
-            <div style="color: var(--text-tertiary); padding: 24px; text-align: center;">输入技能名称并点击「生成路径」</div>
+            <div style="color: var(--text-tertiary); padding: 24px; text-align: center;">输入技能名称并点击「生成路径」，或点击「刷新列表」查看已有路径</div>
           </div>
         </div>
       </div>
@@ -1253,7 +1260,7 @@
       </div>
       <div class="skill-modal-section" id="skill-modal-learning" style="display:none;">
         <div class="skill-modal-section-title">学习资源</div>
-        <a id="skill-modal-learning-link" class="skill-modal-link" href="#" target="_blank"></a>
+        <div id="skill-modal-learning-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;"></div>
       </div>
       <div class="skill-modal-actions">
         <button class="btn btn-primary" id="skill-modal-path-btn" onclick="generatePathFromModal()">生成学习路径</button>
@@ -2633,15 +2640,32 @@
         relatedSection.style.display = 'none';
       }
 
-      // 学习资源入口
+      // 学习资源
       var learningSection = document.getElementById('skill-modal-learning');
-      var learningLink = document.getElementById('skill-modal-learning-link');
-      if (skill.learning_url) {
+      var learningList = document.getElementById('skill-modal-learning-list');
+      var resources = skill.resources || [];
+      if (resources.length) {
         learningSection.style.display = 'block';
-        learningLink.href = skill.learning_url;
-        learningLink.textContent = '访问学习资源 →';
+        learningList.innerHTML = resources.map(function(r) {
+          var url = r.url || '';
+          var hours = r.estimated_hours || 0;
+          var typeLabel = r.type || '资源';
+          var source = r.source || '';
+          var html = '<div style="padding: 10px 12px; background: var(--bg-secondary); border-radius: 8px;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
+              '<div style="font-size: 14px; font-weight: 500; color: var(--text-primary);">' + escapeHtml(r.title || '') + '</div>' +
+              '<span style="font-size: 11px; color: var(--text-quaternary); flex-shrink: 0; margin-left: 8px;">' + escapeHtml(typeLabel) + '</span>' +
+            '</div>' +
+            '<div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">' + escapeHtml(source) + (hours ? ' · 预估 ' + hours + ' 小时' : '') + '</div>';
+          if (url) {
+            html += '<a class="skill-modal-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" style="margin-top: 6px; display: inline-block;">访问资源 →</a>';
+          }
+          html += '</div>';
+          return html;
+        }).join('');
       } else {
         learningSection.style.display = 'none';
+        learningList.innerHTML = '';
       }
 
       // 保存当前技能到按钮
@@ -2748,6 +2772,91 @@
       if (window._learningResources && window._learningResources[idx]) {
         window._learningResources[idx].status = status;
       }
+    }
+
+    /* ——— 学习路径按来源分类 ——— */
+    var _learningPathsBySource = null;
+    var _currentLpFilter = 'all';
+
+    function loadLearningPathsBySource() {
+      if (!window.pybridge) return;
+      showLoading('加载学习路径...');
+      window.pybridge.getLearningPathsBySource(function(result) {
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            _learningPathsBySource = resp.data || {};
+            filterLearningPaths(_currentLpFilter);
+          }
+        } catch (e) { console.error('getLearningPathsBySource error', e); }
+      });
+    }
+
+    function filterLearningPaths(source) {
+      _currentLpFilter = source;
+      // 更新按钮样式
+      ['all', 'skill_graph', 'jd_gap', 'manual'].forEach(function(k) {
+        var btn = document.getElementById('lp-filter-' + k);
+        if (btn) {
+          if (k === source) {
+            btn.style.fontWeight = '600';
+            btn.style.background = 'var(--bg-tertiary)';
+          } else {
+            btn.style.fontWeight = '';
+            btn.style.background = '';
+          }
+        }
+      });
+      if (!_learningPathsBySource) {
+        loadLearningPathsBySource();
+        return;
+      }
+      var allPaths = [];
+      if (source === 'all') {
+        Object.keys(_learningPathsBySource).forEach(function(k) {
+          allPaths = allPaths.concat(_learningPathsBySource[k] || []);
+        });
+      } else {
+        allPaths = _learningPathsBySource[source] || [];
+      }
+      // 渲染路径列表
+      renderLearningPathList(allPaths);
+    }
+
+    function renderLearningPathList(paths) {
+      var container = document.getElementById('learning-resources-container');
+      if (!container) return;
+      if (!paths || !paths.length) {
+        container.innerHTML = '<div style="color: var(--text-tertiary); padding: 24px; text-align: center;">暂无该来源的学习路径</div>';
+        return;
+      }
+      var html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+      paths.forEach(function(path) {
+        var sourceType = path.source_type || 'manual';
+        var sourceLabel = {skill_graph: '技能图谱', jd_gap: 'JD 补充', manual: '手动创建'}[sourceType] || sourceType;
+        var items = path.items || [];
+        var itemCount = items.length;
+        html +=
+          '<div class="card" style="margin-bottom: 0;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
+              '<div>' +
+                '<div class="card-title" style="font-size: 14px;">' + escapeHtml(path.target_gap || '未命名路径') + '</div>' +
+                '<div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">' + escapeHtml(sourceLabel) + ' · ' + itemCount + ' 项资源 · ' + escapeHtml(path.status || 'active') + '</div>' +
+              '</div>' +
+              '<span class="pill">' + escapeHtml(sourceLabel) + '</span>' +
+            '</div>' +
+            (items.length ? '<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">' + items.slice(0, 3).map(function(item) {
+              var url = item.url || '';
+              return '<div style="font-size: 13px; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: var(--bg-secondary); border-radius: 6px;">' +
+                '<span>' + escapeHtml(item.title || '') + '</span>' +
+                (url ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: var(--accent-brand); text-decoration: none; white-space: nowrap;">访问 →</a>' : '') +
+              '</div>';
+            }).join('') + (items.length > 3 ? '<div style="font-size: 12px; color: var(--text-quaternary); text-align: center;">还有 ' + (items.length - 3) + ' 项...</div>' : '') + '</div>' : '') +
+          '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
     }
 
     /* ─── Page init ─── */

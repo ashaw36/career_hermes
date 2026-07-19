@@ -49,6 +49,16 @@ class SkillGraph:
         """获取单个节点"""
         return self._index.get(skill_id)
 
+    def get_resources(self, skill_id: str) -> List[Dict[str, Any]]:
+        """获取指定技能节点的学习资源列表"""
+        node = self.get_node(skill_id)
+        if not node:
+            return []
+        resources = node.get("resources", [])
+        if not isinstance(resources, list):
+            return []
+        return [dict(resource) for resource in resources if isinstance(resource, dict)]
+
     def search(self, query: str) -> List[Dict[str, Any]]:
         """按名称/别名搜索（不区分大小写）"""
         q = query.strip().lower()

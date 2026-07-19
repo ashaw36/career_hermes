@@ -10,7 +10,8 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QObject, QUrl, Slot
+from PySide6.QtGui import QDesktopServices
 
 from src.ui.webview.api_handler import CareerAPI
 
@@ -307,6 +308,15 @@ class CareerBridge(QObject):
             logger.error(f"Bridge getLearningPath error: {e}")
             return self._err(str(e))
 
+    @Slot(result=str)
+    def getLearningPathsBySource(self) -> str:
+        try:
+            data = self._api.get_learning_paths_by_source()
+            return self._ok(data)
+        except Exception as e:
+            logger.error(f"Bridge getLearningPathsBySource error: {e}")
+            return self._err(str(e))
+
     # ─── 技能图谱 ───
 
     @Slot(result=str)
@@ -319,12 +329,30 @@ class CareerBridge(QObject):
             return self._err(str(e))
 
     @Slot(str, result=str)
+    def getSkillResources(self, skill_id: str) -> str:
+        try:
+            data = self._api.get_skill_resources(skill_id)
+            return self._ok(data)
+        except Exception as e:
+            logger.error(f"Bridge getSkillResources error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
     def searchSkills(self, query: str) -> str:
         try:
             result = self._api.search_skills(query)
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Bridge searchSkills error: {e}")
+            return self._err(str(e))
+
+    @Slot(str, result=str)
+    def openExternalUrl(self, url: str) -> str:
+        try:
+            opened = QDesktopServices.openUrl(QUrl(url))
+            return json.dumps({"success": bool(opened)}, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge openExternalUrl error: {e}")
             return self._err(str(e))
 
     # ─── 统计 ───

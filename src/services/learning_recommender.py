@@ -16,6 +16,7 @@ from sqlalchemy import select
 from src.llm.router import LLMError, LLMRouter
 from src.models.database import AsyncSessionLocal
 from src.models.entities import LearningPath, Persona
+from src.services.skill_graph import SkillGraph
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class LearningRecommender:
 
     def __init__(self, llm_router: Optional[LLMRouter] = None) -> None:
         self.llm = llm_router or LLMRouter()
+        self.skill_graph = SkillGraph()
 
     async def recommend_for_gap(
         self,
@@ -77,16 +79,73 @@ class LearningRecommender:
         """
         根据缺失技能生成学习推荐列表。
 
-        策略：先尝试 LLM 生成高质量推荐，LLM 不可用时回退到本地模板库。
+        策略：先尝试技能图谱真实资源，再尝试 LLM，最后回退到本地模板库。
         """
         if not missing_skills:
             return []
+
+        graph_items = self._recommend_by_skill_graph(missing_skills)
+        if graph_items:
+            return graph_items
 
         try:
             return await self._recommend_by_llm(persona_id, missing_skills)
         except LLMError as e:
             logger.warning("LLM 推荐失败，回退到本地模板: %s", e)
             return self._recommend_by_template(missing_skills)
+
+    def _recommend_by_skill_graph(
+        self, missing_skills: List[str]
+    ) -> List[Dict[str, Any]]:
+        """基于 skill_graph.json 中的真实资源生成推荐"""
+        items: List[Dict[str, Any]] = []
+        seen_titles: set[str] = set()
+        priority = 1
+
+        for skill in missing_skills:
+            skill_text = skill.strip()
+            if not skill_text:
+                continue
+
+            node = self.skill_graph.get_node(skill_text)
+            if node is None:
+                node = self.skill_graph.get_node(skill_text.lower())
+            if node is None:
+                matches = self.skill_graph.search(skill_text)
+                node = matches[0] if matches else None
+            if node is None:
+                continue
+
+            resources = node.get("resources", [])
+            if not isinstance(resources, list):
+                continue
+
+            added_for_skill = 0
+            for resource in resources:
+                if not isinstance(resource, dict):
+                    continue
+                title = str(resource.get("title", "")).strip()
+                if not title or title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                item = {
+                    "type": resource.get("type", "course"),
+                    "title": title,
+                    "source": resource.get("source", "线上平台"),
+                    "estimated_hours": resource.get("estimated_hours", 10),
+                    "url": resource.get("url", ""),
+                    "priority": priority,
+                    "status": "pending",
+                    "skill_id": node.get("id", ""),
+                    "skill_name": node.get("name", skill_text),
+                }
+                items.append(item)
+                added_for_skill += 1
+                priority += 1
+                if added_for_skill >= 2:
+                    break
+
+        return items
 
     async def _recommend_by_llm(
         self,
@@ -193,6 +252,7 @@ class LearningRecommender:
         persona_id: str,
         target_gap: str,
         items: List[Dict[str, Any]],
+        source_type: str = "manual",
     ) -> LearningPath:
         """
         创建学习路径并保存到数据库。
@@ -201,6 +261,7 @@ class LearningRecommender:
             persona_id=persona_id,
             target_gap=target_gap,
             items=items,
+            source_type=source_type,
             status="active",
         )
         async with AsyncSessionLocal() as session:

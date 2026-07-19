@@ -551,6 +551,15 @@ class CareerAPI:
                     missing_skills=[skill],
                 )
             )
+            if items:
+                AsyncRunner.run(
+                    self.learner.create_learning_path(
+                        persona_id=persona_id,
+                        target_gap=skill,
+                        items=items,
+                        source_type="skill_graph",
+                    )
+                )
             result = []
             for item in (items or []):
                 if not isinstance(item, dict):
@@ -569,6 +578,57 @@ class CareerAPI:
         except Exception as e:
             logger.error(f"get_learning_path error: {e}")
             return []
+
+    def get_learning_paths_by_source(
+        self, persona_id: str = ""
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """按 source_type 分类返回学习路径"""
+        try:
+            target_persona_id = persona_id
+            if not target_persona_id:
+                personas = self.get_personas()
+                target_persona_id = personas[0].get("id", "") if personas else ""
+            if not target_persona_id:
+                return {"jd_gap": [], "skill_graph": [], "manual": [], "other": []}
+            return AsyncRunner.run(self._get_learning_paths_by_source(target_persona_id))
+        except Exception as e:
+            logger.error(f"get_learning_paths_by_source error: {e}")
+            return {"jd_gap": [], "skill_graph": [], "manual": [], "other": []}
+
+    @staticmethod
+    async def _get_learning_paths_by_source(
+        persona_id: str,
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        grouped: Dict[str, List[Dict[str, Any]]] = {
+            "jd_gap": [],
+            "skill_graph": [],
+            "manual": [],
+            "other": [],
+        }
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(LearningPath)
+                .where(LearningPath.persona_id == persona_id)
+                .order_by(LearningPath.created_at.desc())
+            )
+            for path in result.scalars().all():
+                source_type = getattr(path, "source_type", None) or "manual"
+                key = source_type if source_type in grouped else "other"
+                grouped[key].append(CareerAPI._learning_path_to_dict(path))
+        return grouped
+
+    @staticmethod
+    def _learning_path_to_dict(path: Any) -> Dict[str, Any]:
+        return {
+            "id": str(path.id) if hasattr(path, "id") else "",
+            "persona_id": str(getattr(path, "persona_id", "")) or "",
+            "target_gap": getattr(path, "target_gap", "") or "",
+            "items": list(getattr(path, "items", []) or []),
+            "source_type": getattr(path, "source_type", None) or "manual",
+            "status": getattr(path, "status", "active") or "active",
+            "created_at": str(getattr(path, "created_at", "")),
+            "updated_at": str(getattr(path, "updated_at", "")),
+        }
 
     # ——— 经历增删 ———
 
@@ -708,6 +768,15 @@ class CareerAPI:
         except Exception as e:
             logger.error(f"search_skills error: {e}")
             return {"success": False, "error": str(e)}
+
+    def get_skill_resources(self, skill_id: str) -> List[Dict[str, Any]]:
+        """获取技能节点的学习资源"""
+        try:
+            resources = self.skill_graph.get_resources(skill_id)
+            return [dict(resource) for resource in resources]
+        except Exception as e:
+            logger.error(f"get_skill_resources error: {e}")
+            return []
 
     # ─── 统计 ───
 

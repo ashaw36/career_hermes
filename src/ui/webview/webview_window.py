@@ -11,12 +11,32 @@ from pathlib import Path
 from typing import List, Optional
 
 from PySide6.QtCore import QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QMainWindow
 
 from src.ui.webview.bridge import CareerBridge
+
+
+class ExternalLinkPage(QWebEnginePage):
+    """Open clicked external links in the system browser."""
+
+    def acceptNavigationRequest(
+        self,
+        url: QUrl,
+        navigation_type: QWebEnginePage.NavigationType,
+        is_main_frame: bool,
+    ) -> bool:
+        if (
+            navigation_type
+            == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
+            and url.scheme() in ("http", "https")
+        ):
+            QDesktopServices.openUrl(url)
+            return False
+        return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
 
 
 class CareerWebWindow(QMainWindow):
@@ -37,6 +57,8 @@ class CareerWebWindow(QMainWindow):
 
         # 创建 WebEngineView
         self.web_view = QWebEngineView(self)
+        self.web_page = ExternalLinkPage(self.web_view)
+        self.web_view.setPage(self.web_page)
         self.setCentralWidget(self.web_view)
 
         # 配置 WebEngine 设置
@@ -53,9 +75,9 @@ class CareerWebWindow(QMainWindow):
 
         # 创建并注册 QWebChannel + Bridge
         self.bridge = CareerBridge(self)
-        self.channel = QWebChannel(self.web_view.page())
+        self.channel = QWebChannel(self.web_page)
         self.channel.registerObject("pybridge", self.bridge)
-        self.web_view.page().setWebChannel(self.channel)
+        self.web_page.setWebChannel(self.channel)
 
         # 加载本地 HTML 原型
         html_path = self._resolve_html_path()

@@ -1388,7 +1388,6 @@
           '<div class="exp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>' +
           '<div class="exp-info">' +
             '<div class="exp-title">' + escapeHtml(item.title || '') + '</div>' +
-            '<div class="exp-sub">' + escapeHtml((item.role || '') + ' · ' + (item.company || '') + ' · ' + (item.start_date || '')) + '</div>' +
           '</div>' +
           '<div class="exp-tags">' + (item.skills || []).slice(0,3).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>';
         container.appendChild(div);
@@ -1570,6 +1569,7 @@
           if (resp.success) {
             alert('保存成功');
             loadPersonasFromBridge();
+            refreshAllPersonaSelectors();
           } else {
             alert('保存失败: ' + (resp.error || ''));
           }
@@ -1587,11 +1587,35 @@
           if (resp.success) {
             gSelectedPersonaId = null;
             loadPersonasFromBridge();
+            refreshAllPersonaSelectors();
           } else {
             alert('删除失败: ' + (resp.error || ''));
           }
         } catch (e) { alert('删除错误'); }
       });
+    }
+
+    function refreshAllPersonaSelectors() {
+      loadResumePage();
+      var jobSelect = document.getElementById('job-persona-select');
+      if (jobSelect && window.pybridge) {
+        window.pybridge.getPersonas(function(result) {
+          try {
+            var resp = JSON.parse(result);
+            if (!resp.success) return;
+            var current = jobSelect.value;
+            jobSelect.innerHTML = '';
+            resp.data.forEach(function(p) {
+              var opt = document.createElement('option');
+              opt.value = p.id;
+              opt.textContent = p.name;
+              jobSelect.appendChild(opt);
+            });
+            if (current) jobSelect.value = current;
+            else if (resp.data.length) jobSelect.value = resp.data[0].id;
+          } catch (e) { console.error('refreshJobPersonaSelect error', e); }
+        });
+      }
     }
 
     function createNewPersona() {
@@ -1603,6 +1627,7 @@
           var resp = JSON.parse(result);
           if (resp.success) {
             loadPersonasFromBridge();
+            refreshAllPersonaSelectors();
           } else {
             alert('创建失败: ' + (resp.error || ''));
           }

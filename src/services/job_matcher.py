@@ -500,6 +500,7 @@ class JobMatcher:
         async with AsyncSessionLocal() as session:
             stmt = (
                 select(JobMatch)
+                .options(selectinload(JobMatch.persona), selectinload(JobMatch.job_desc))
                 .where(JobMatch.persona_id == persona_id)
                 .order_by(JobMatch.match_score.desc())
             )

@@ -307,8 +307,14 @@ class CareerAPI:
         breakdown = getattr(m, "score_breakdown", {}) or {}
         matched_skills = list(getattr(m, "matched_skills", []) or [])
         missing_skills = list(getattr(m, "missing_skills", []) or [])
-        job_desc = getattr(m, "job_desc", None)
-        persona = getattr(m, "persona", None)
+        try:
+            job_desc = getattr(m, "job_desc", None)
+        except Exception:
+            job_desc = None
+        try:
+            persona = getattr(m, "persona", None)
+        except Exception:
+            persona = None
         parsed_skills = list(getattr(job_desc, "parsed_skills", []) or [])
         required_skills = parsed_skills or matched_skills + missing_skills
         return {

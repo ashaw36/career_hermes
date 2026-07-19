@@ -255,3 +255,9 @@ pytest tests/ -v --tb=short
   - 上传 PDF/Word 后 LLM 自动提取结构化经历并保存到经历库
   - 移除全局 header "Mock模式"/“连接状态"按钮，清理无用配置
   - 测试：**132 passed** 全部通过
+
+- **2026-07-19** — 用户体验优兆修复：
+  1. 角色创建/保存/删除后自动同步刷新简历页和岗位匹配页的角色选择器（新增 `refreshAllPersonaSelectors()`）
+  2. 修复匹配并解析报错 `Parent instance <JobMatch> is not bound to a Session`：`_match_to_dict` relationship 访问加 try/except 降级，`list_matches` 补 `selectinload`
+  3. 经历库明细行只展示项目名称，隐藏 role/company/date 副标题
+  - 测试：**149 passed** 全部通过

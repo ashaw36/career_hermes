@@ -500,6 +500,49 @@ class CareerAPI:
             logger.error(f"delete_persona error: {e}")
             return {"success": False, "error": str(e)}
 
+    def chat_refine_resume(self, persona_id: str, instruction: str) -> Dict[str, Any]:
+        """对话式简历调优：基于当前简历 + 用户指令生成修改版本"""
+        try:
+            if not persona_id or not instruction:
+                return {"success": False, "error": "角色ID和调优指令不能为空"}
+
+            # 1. 获取当前简历
+            builder = ResumeBuilder(persona_id=persona_id)
+            AsyncRunner.run(builder.prepare())
+            current_resume = AsyncRunner.run(builder.render(template_name="modern"))
+
+            # 2. 调用 LLM 生成修改版本
+            from src.llm.router import LLMRouter
+            from src.config.settings import get_settings
+
+            settings = get_settings()
+            router = LLMRouter(settings=settings)
+
+            prompt = (
+                f"你是一位资深简历顾问。以下是用户的当前简历：\n\n"
+                f"{current_resume}\n\n"
+                f"用户的调优指令：{instruction}\n\n"
+                f"请根据指令修改简历，保持事实准确，只调整表达方式和侧重点。"
+                f"返回修改后的完整简历 Markdown。"
+            )
+
+            response = AsyncRunner.run(
+                router.chat(messages=[{"role": "user", "content": prompt}])
+            )
+            refined = response if isinstance(response, str) else str(response)
+
+            return {
+                "success": True,
+                "data": {
+                    "original": current_resume,
+                    "refined": refined,
+                    "instruction": instruction,
+                },
+            }
+        except Exception as e:
+            logger.error(f"chat_refine_resume error: {e}")
+            return {"success": False, "error": str(e)}
+
     # ─── 统计 ───
 
     def get_stats(self) -> Dict[str, Any]:

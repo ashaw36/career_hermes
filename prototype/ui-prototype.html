@@ -922,12 +922,28 @@
                   <span class="pill">请先生成简历</span>
                 </div>
               </div>
-              <div class="card">
+              <div class="card" style="margin-bottom: 12px;">
                 <div class="card-title">缺失技能</div>
                 <div style="margin-top: 10px;" id="resume-missing-skills">
                   <span class="pill">请先生成简历</span>
                 </div>
                 <button class="btn btn-primary" style="margin-top: 14px; width: 100%;">生成学习路径</button>
+              </div>
+              <!-- 对话式调优 -->
+              <div class="card" style="margin-bottom: 12px;">
+                <div class="card-title">💬 对话式调优</div>
+                <div style="margin-top: 10px;">
+                  <textarea id="refine-instruction" class="form-textarea" rows="2" placeholder="输入调优指令，例如：更偏技术、强化数据能力..."></textarea>
+                  <button class="btn btn-primary" style="margin-top: 8px; width: 100%;" onclick="chatRefineResume()">✨ 生成调优版本</button>
+                </div>
+                <div id="refine-history" style="margin-top: 10px; display: none;">
+                  <div style="font-size: 12px; color: var(--text-quaternary); margin-bottom: 6px;">历史记录</div>
+                  <div id="refine-history-list"></div>
+                </div>
+                <div id="refine-result" style="margin-top: 10px; display: none;">
+                  <div style="font-size: 12px; color: var(--text-quaternary); margin-bottom: 6px;">调优结果</div>
+                  <div id="refine-result-content" class="resume-preview" style="padding: 16px; font-size: 13px; max-height: 300px; overflow: auto;"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1397,6 +1413,35 @@
             showError('简历生成失败', resp.error || '请检查 LLM 配置或网络连接');
           }
         } catch (e) { hideLoading(); if (preview) preview.innerHTML = '<div style="color: var(--danger);">生成错误</div>'; }
+      });
+    }
+
+    function chatRefineResume() {
+      var select = document.querySelector('#page-resume select.form-select');
+      if (!select || !select.value) { showError('请先选择角色', ''); return; }
+      var instruction = document.getElementById('refine-instruction').value.trim();
+      if (!instruction) { showError('请输入调优指令', ''); return; }
+      showLoading('正在调优简历...');
+      window.pybridge.chatRefineResume(select.value, instruction, function(result) {
+        hideLoading();
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success) {
+            var historyList = document.getElementById('refine-history-list');
+            var historyDiv = document.getElementById('refine-history');
+            var resultDiv = document.getElementById('refine-result');
+            var resultContent = document.getElementById('refine-result-content');
+            var entry = document.createElement('div');
+            entry.style.cssText = 'font-size: 12px; color: var(--text-secondary); padding: 6px 0; border-bottom: 1px solid var(--border-subtle);';
+            entry.innerHTML = '<span style="color: var(--accent-violet);">' + escapeHtml(instruction) + '</span> → 已生成';
+            historyList.appendChild(entry);
+            historyDiv.style.display = 'block';
+            resultContent.innerHTML = resp.data.refined ? resp.data.refined.replace(/\n/g, '<br>') : '<p style="color: var(--text-tertiary);">暂无内容</p>';
+            resultDiv.style.display = 'block';
+          } else {
+            showError('调优失败: ' + (resp.error || ''), '');
+          }
+        } catch (e) { showError('调优错误', ''); }
       });
     }
 

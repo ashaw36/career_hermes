@@ -127,6 +127,15 @@ class CareerBridge(QObject):
             logger.error(f"Bridge generateResume error: {e}")
             return self._err(str(e))
 
+    @Slot(str, str, result=str)
+    def chatRefineResume(self, persona_id: str, instruction: str) -> str:
+        try:
+            result = self._api.chat_refine_resume(persona_id, instruction)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge chatRefineResume error: {e}")
+            return self._err(str(e))
+
     # ─── 岗位匹配 ───
 
     @Slot(str, result=str)

@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 1-6 全部完成，三大限制已优化**，待续接真实 LLM 进行端到端验证、PyInstaller 打包
+> 当前阶段：**Sprint 9-10 执行中** — P0✅ P1-1✅ P1-2✅ P1-3⏳ P2⏳ P3⏳ | 待对话式简历调优 + 首次启动引导 + Boss爬虫稳定化 + 打包exe + 技能Gap雷达图
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -49,7 +49,8 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || **Sprint 4 (Week 7-8)** | ✅ 已完成 | JD解析服务、经历重述引擎、多模型容错降级、JobMatcher |
 || **Sprint 5 (Week 9-10)** | ✅ 已完成 | 岗位匹配算法、Gap分析、学习路径推荐（learning_recommender） |
 || **Sprint 6 (Week 11-12)** | ✅ 已完成 | GUI完善（经历/角色/简历/岗位页面）、Polish、测试补齐 |
-|| **Sprint 7 (Week 13-14)** | ✅ 已完成 | WebView混合架构（QWebEngineView + QWebChannel）、HTML原型桥接、SVG图标修复 |
+||| **Sprint 7-8 (Week 15-18)** | ✅ 已完成 | 岗位匹配增强+JD修饰、WebView全页面动态化、e2e测试补齐、BMAD文档更新 |
+||| **Sprint 9-10 (Week 19-22)** | 🔄 执行中 | P0✅ P1-1✅ P1-2✅ P1-3⏳ P2⏳ P3⏳ |
 
 ## 📁 核心文件清单
 
@@ -79,17 +80,18 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `src/services/learning_recommender.py` | 294 | 学习路径推荐（LLM回退+本地模板库） |
 | `src/services/pdf_exporter.py` | 242 | PDF简历导出服务（fpdf2） |
 | `src/services/import_parser.py` | 372 | 经历批量导入解析器（Markdown/文本/JSON） |
-| `src/crawlers/base.py` | 101 | 爬虫基类（Playwright封装） |
+|| `src/services/jd_reframe_engine.py` | 331 | JD经历修饰引擎（为岗位匹配生成经历修饰版本） |
+|| `src/crawlers/base.py` | 101 | 爬虫基类（Playwright封装） |
 | `src/crawlers/boss_zhipin.py` | 141 | Boss直聘爬虫 |
 | `src/crawlers/jd_crawler.py` | 80 | JD爬虫存根（Mock模式） |
 | `src/ui/main_window.py` | 243 | PySide6主窗口（六页面导航） |
 | `src/ui/pages/experience_page.py` | 311 | 经历管理页面 |
 | `src/ui/pages/persona_page.py` | 342 | 角色配置页面 |
 | `src/ui/pages/resume_page.py` | 225 | 简历预览页面（支持Markdown+PDF导出） |
-| `src/ui/pages/job_match_page.py` | 316 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新、行点击查看详情） |
-| `src/ui/webview/bridge.py` | 166 | QWebChannel Python桥接（13个API端点：经历/角色/简历/岗位/匹配/修饰/学习/统计） |
-| `src/ui/webview/webview_window.py` | 110 | WebView主窗口（QWebEngineView + DevTools） |
-| `src/ui/webview/api_handler.py` | 431 | 同步API适配层（异步Service → 同步Bridge） |
+|| `src/ui/pages/job_match_page.py` | 316 | 岗位匹配页面（JD粘贴、解析、匹配、状态更新、行点击查看详情） |
+|| `src/ui/webview/bridge.py` | 231 | QWebChannel Python桥接（18个API端点：经历/角色/简历/岗位/匹配/修饰/学习/统计） |
+|| `src/ui/webview/webview_window.py` | 110 | WebView主窗口（QWebEngineView + DevTools） |
+|| `src/ui/webview/api_handler.py` | 541 | 同步API适配层（异步Service → 同步Bridge） |
 | `src/ui/webview/__init__.py` | 6 | WebView模块导出 |
 | `src/main_webview.py` | 35 | WebView版应用入口 |
 | `src/utils/security.py` | 186 | API Key加密存储（keyring/Fernet） |
@@ -130,7 +132,9 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 | `a949267` | feat: Sprint 4-6 完成 — 岗位匹配、学习路径、GUI完善、53测试通过 |
 | `ba175a7` | feat: 优化三大限制 + 打包 — 行点击修复、Mock LLM、PDF导出、PyInstaller脚本、63测试通过 |
 | `10e6c7a` | docs: 产品功能路线图 v1.0 + INDEX更新 — 锁定差异化/模板/云同步决策 |
-| `3dd4441` | feat(Sprint7): 经历批量导入 + 爬虫框架 + 模板选择 — 74测试通过 |
+|| `3dd4441` | feat(Sprint7): 经历批量导入 + 爬虫框架 + 模板选择 — 74测试通过 |
+|| `387183c` | feat(Sprint8): 岗位匹配增强+JD修饰+WebView动态化 — 109测试通过 |
+|| `e736919` | feat(Sprint9-10 P0+P1): 冲突检测+WebView全页面动态化+加载状态/错误提示 — 109测试通过 |
 
 ## 📋 Notion 映射
 
@@ -152,15 +156,22 @@ pytest tests/ -v --tb=short
 
 ## 📝 变更日志
 
+- **2026-07-19** — **P0+P1 完成**并推送 GitHub `e736919`：
+  - ❯ P0-1: 经历时间冲突检测 — `TimeConflictError` + API 层返回 `error_type: TIME_CONFLICT` + 前端弹窗
+  - ❯ P0-2~5: WebView 全页面动态化 — 经历/角色/简历/欢迎页全部接通 bridge API，点击切换、表单编辑、新建/删除
+  - ❯ P1-1: 全局加载遮罩层 `showLoading`/`hideLoading`
+  - ❯ P1-2: 友好错误提示 `showError(message, suggestion)` — 右上角浮窗
+  - 新增 bridge API: `deleteExperience`、`getPersonaById`、`createPersona`、`updatePersona`、`deletePersona`
+  - 测试: **109 个，全部通过** | 代码量: ~5,400 行
+
 - **2026-07-19** — 岗位匹配增强 + WebView 前端动态化 + e2e测试补齐：
   - 修复 `resume_builder.py` 经历为空 Bug：`min_score` 从 0.15 降至 0.0，无权重时增加 fallback 逻辑；修复跨线程 ORM 对象 detached 状态引发的隐患
   - 新增 `parseJD` + `matchJob(job_desc_id, persona_id)` 拆分流程，支持选择角色后匹配
-  - 新增岗位管理 API：`listJobs`、`deleteJob` (级联删除匹配+修饰记录)、`getJobMatches` (按岗位查)、`updateMatchStatus`、`reframeResume`、`getReframeResults`
-  - HTML 原型 `ui-prototype.html` 岗位页完全动态化：JD 粘贴区 → 解析匹配 → 动态岗位卡片 (分数环+ 删除按钮) → 匹配详情面板 (状态更新) → 简历修饰区 (存档关联)
-  - `job_matcher.py` 新增 `list_matches_by_job()` 按岗位查询匹配
-  - 新增 e2e 测试 3 个文件：test_resume_e2e(2)、test_persona_e2e(2)、test_job_match_e2e(2)，覆盖简历生成/角色Fit Score/岗位修饰完整链路
+  - 新增岗位管理 API：`listJobs`、`deleteJob`、`getJobMatches`、`updateMatchStatus`、`reframeResume`、`getReframeResults`
+  - HTML 原型 `ui-prototype.html` 岗位页完全动态化
+  - 新增 e2e 测试 3 个文件：test_resume_e2e(2)、test_persona_e2e(2)、test_job_match_e2e(2)
   - BMAD 文档更新：Sprint7-8_Plan 补录 + 新建 Sprint9-10_Plan
-  - 测试总数：**109 个，全部通过** | 代码量：~5,400 行
+  - 测试总数：109 个，全部通过 | 代码量：~5,400 行
 
 - **2026-07-17** — Sprint 7 推进：
   - 新增 `import_parser.py`：支持 Markdown/文本/JSON 三种格式经历批量导入，解决冷启动问题

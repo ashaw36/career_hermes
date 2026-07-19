@@ -177,6 +177,11 @@ pytest tests/ -v --tb=short
   - API Key 不回显（安全），留空则保留原值
   - 页面加载时自动回显当前 config.yaml 配置
   - 后端 `save_settings` 重写：全量写入 `llm_providers` 数组 + `default_llm_provider`，清空 `_settings` 缓存保证即时生效
+
+- **2026-07-19** — **Sprint 13 patch** (`04afed3`)：
+  - 技能弹窗和学习路径页面的所有"访问资源"链接，从 `target="_blank"` 跳转改为**点击复制链接到剪贴板**
+  - 新增 Bridge `copyToClipboard(text)` Slot，通过 `QApplication.clipboard().setText()` 写入系统剪贴板
+  - 前端新增 `copyResourceUrl()` + `showCopiedToast()` 函数，复制成功后底部显示绿色 Toast 提示
   - 测试：**149 passed** 全部通过
 
 - **2026-07-19** — **删除原生 PySide6 GUI，只保留 WebView**：

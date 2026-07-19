@@ -55,12 +55,17 @@ class TestSecureStorage:
                         )
                         assert result == "sk-local"
 
-    def test_store_api_key_no_crypto(self):
-        """缺少 cryptography 时抛出异常"""
+    def test_store_api_key_no_crypto_fallback(self):
+        """缺少 cryptography 时降级为明文存储"""
         with patch("src.utils.security.KEYRING_AVAILABLE", False):
             with patch("src.utils.security.CRYPTO_AVAILABLE", False):
-                with pytest.raises(RuntimeError, match="cryptography"):
-                    SecureStorage.store_api_key("tongyi", "sk-test")
+                result = SecureStorage.store_api_key("tongyi", "sk-test")
+                assert result is True
+                # 验证可以读回
+                retrieved = SecureStorage.retrieve_api_key("tongyi")
+                assert retrieved == "sk-test"
+                # 清理
+                SecureStorage.delete_api_key("tongyi")
 
     def test_delete_api_key(self):
         """删除 API Key"""

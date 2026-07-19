@@ -935,10 +935,9 @@ class CareerAPI:
 
                 api_key = item.get("api_key", "").strip()
                 if api_key:
-                    try:
-                        SecureStorage.store_api_key(name, api_key)
-                    except Exception as e:
-                        logger.warning(f"API Key 安全存储失败: {e}")
+                    success = SecureStorage.store_api_key(name, api_key)
+                    if not success:
+                        return {"success": False, "error": f"Provider '{name}' 的 API Key 存储失败"}
 
                 base_url = item.get("base_url")
                 if isinstance(base_url, str):

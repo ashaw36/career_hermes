@@ -41,3 +41,24 @@
 - 完成日期：2026-07-19
 - 提交 hash：`63bf2a6`
 - 测试结果：149 passed in 17.57s
+
+## Patch 2026-07-20 — SecureStorage 链路打通
+
+### 问题
+
+- `save_settings` 存储 API Key 时，SecureStorage 在无 keyring/cryptography 环境下抛出 `RuntimeError`，后端 try/except 只打 warning 后继续，导致：
+  1. YAML 中的明文 Key 被清空
+  2. SecureStorage 未存入
+  3. 前端误报"保存成功"
+- `load_settings()` 从未从 SecureStorage 注入 Key，Router 始终读不到 Key
+
+### 修复
+
+| 文件 | 变更 |
+|-------|------|
+| `src/utils/security.py` | `store_api_key` 增加明文 fallback（当 keyring 和 cryptography 都不可用时）；`retrieve_api_key` 先检测明文再尝试解密；全部方法兼容明文文件路径 |
+| `src/config/settings.py` | `load_settings()` 在构建 Settings 后，遍历 providers 从 SecureStorage 注入 `api_key` |
+| `src/ui/webview/api_handler.py` | `save_settings` 中 API Key 存储失败时立即返回 `{"success": false, "error": ...}`，不再静默吞异常 |
+| `tests/test_security.py` | 更新为明文 fallback 场景 |
+
+- 测试：**149 passed** 全部通过

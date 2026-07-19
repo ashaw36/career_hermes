@@ -134,12 +134,22 @@ def create_default_config() -> None:
 def load_settings() -> CareerCraftSettings:
     """
     加载应用配置：先读取环境变量，再从 YAML 文件加载并合并。
-    如果配置文件不存在，自动创建默认配置。"""
+    如果配置文件不存在，自动创建默认配置。
+    加载完成后从 SecureStorage 注入 API Key。"""
     if not CONFIG_FILE.exists():
         create_default_config()
 
     yaml_data = _load_yaml_config()
-    return CareerCraftSettings(**yaml_data)
+    settings = CareerCraftSettings(**yaml_data)
+
+    # 从 SecureStorage 注入 API Key（YAML 中不存储明文 Key）
+    from src.utils.security import SecureStorage
+    for provider in settings.llm_providers:
+        key = SecureStorage.retrieve_api_key(provider.name)
+        if key:
+            provider.api_key = key
+
+    return settings
 
 
 # 全局配置实例（延迟初始化）

@@ -85,13 +85,8 @@ class SecureStorage:
         """
         存储 API Key
 
-        Args:
-            provider_name: 供应商名称，e.g. "tongyi"
-            api_key: 明文 API Key
-            master_password: 主密码（本地加密时需要）
-
-        Returns:
-            是否存储成功
+        优先尝试系统 keyring；不可用时回退到本地加密文件；
+        两者都不可用时降级为明文文件存储。
         """
         # 尝试 keyring
         if KEYRING_AVAILABLE:
@@ -99,21 +94,24 @@ class SecureStorage:
                 keyring.set_password(cls.SERVICE_NAME, provider_name, api_key)
                 return True
             except Exception:
-                pass  # 降级到本地加密
+                pass  # 降级到本地存储
 
-        # 本地加密存储
-        if not CRYPTO_AVAILABLE:
-            raise RuntimeError("无法存储 API Key: cryptography 库未安装")
-        if not master_password:
-            raise ValueError("本地加密存储需要主密码")
+        # 尝试本地加密存储
+        if CRYPTO_AVAILABLE and master_password:
+            try:
+                fernet = _get_fernet(master_password)
+                if fernet is not None:
+                    encrypted = fernet.encrypt(api_key.encode())
+                    key_path = SECURE_DIR / f"{provider_name}.key"
+                    key_path.write_bytes(encrypted)
+                    os.chmod(key_path, 0o600)
+                    return True
+            except Exception:
+                pass  # 降级到明文
 
-        fernet = _get_fernet(master_password)
-        if fernet is None:
-            raise RuntimeError("加密初始化失败")
-
-        encrypted = fernet.encrypt(api_key.encode())
+        # 明文 fallback（本地单用户工具的最终降级）
         key_path = SECURE_DIR / f"{provider_name}.key"
-        key_path.write_bytes(encrypted)
+        key_path.write_text(api_key, encoding="utf-8")
         os.chmod(key_path, 0o600)
         return True
 
@@ -122,12 +120,8 @@ class SecureStorage:
         """
         获取 API Key
 
-        Args:
-            provider_name: 供应商名称
-            master_password: 主密码（本地加密时需要）
-
-        Returns:
-            明文 API Key 或 None
+        优先尝试系统 keyring；不可用时检查本地文件。
+        本地文件可能是加密的或明文的，会自动尝试解密。
         """
         # 尝试 keyring
         if KEYRING_AVAILABLE:
@@ -138,25 +132,33 @@ class SecureStorage:
             except Exception:
                 pass
 
-        # 本地加密文件
+        # 本地文件
         key_path = SECURE_DIR / f"{provider_name}.key"
         if not key_path.exists():
             return None
 
-        if not CRYPTO_AVAILABLE:
-            raise RuntimeError("无法解密 API Key: cryptography 库未安装")
-        if not master_password:
-            raise ValueError("本地加密存储需要主密码")
+        raw = key_path.read_bytes()
 
-        fernet = _get_fernet(master_password)
-        if fernet is None:
-            raise RuntimeError("解密初始化失败")
-
-        encrypted = key_path.read_bytes()
+        # 首先尝试当明文读取（兼容旧版明文 fallback 存储）
         try:
-            return fernet.decrypt(encrypted).decode()
-        except Exception:
-            raise RuntimeError("API Key 解密失败，可能主密码错误")
+            text = raw.decode("utf-8")
+            # 常见 API key 前缀：sk- (OpenAI/兼容), hf_ (HuggingFace), ak- (阿里云)
+            if text.startswith(("sk-", "hf_", "ak-")):
+                return text
+        except UnicodeDecodeError:
+            pass
+
+        # 尝试加密解密
+        if CRYPTO_AVAILABLE and master_password:
+            try:
+                fernet = _get_fernet(master_password)
+                if fernet is not None:
+                    return fernet.decrypt(raw).decode()
+            except Exception:
+                pass
+
+        # 无法解密且不是明文——返回 None
+        return None
 
     @classmethod
     def has_api_key(cls, provider_name: str) -> bool:

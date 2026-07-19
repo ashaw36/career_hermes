@@ -295,3 +295,10 @@ pytest tests/ -v --tb=short
   2. 修复匹配并解析报错 `Parent instance <JobMatch> is not bound to a Session`：`_match_to_dict` relationship 访问加 try/except 降级，`list_matches` 补 `selectinload`
   3. 经历库明细行只展示项目名称，隐藏 role/company/date 副标题
   - 测试：**149 passed** 全部通过
+
+- **2026-07-20** — **SecureStorage 链路修复 — Key 存储全链路打通**:
+  1. `security.py` 增加明文 fallback：keyring 和 cryptography 都不可用时降级为明文文件存储
+  2. `settings.py` `load_settings()` 加载后从 SecureStorage 注入 `api_key`，Router 无需改动即可读取
+  3. `api_handler.py` `save_settings()` 严格校验：API Key 存储失败时返回 `{"success": false, "error": ...}`，不再静默吞掉
+  4. 测试：`test_security.py` 更新为明文 fallback 场景
+  - 测试：**149 passed** 全部通过

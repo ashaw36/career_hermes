@@ -239,10 +239,14 @@ class JobMatcher:
     @staticmethod
     def _parse_skill_extraction_response(response: str) -> List[str]:
         text = response.strip()
-        if "```json" in text:
-            text = text.split("```json", 1)[1].split("```", 1)[0].strip()
-        elif "```" in text:
-            text = text.split("```", 1)[1].split("```", 1)[0].strip()
+        try:
+            if "```json" in text:
+                text = text.split("```json", 1)[1].split("```", 1)[0].strip()
+            elif "```" in text:
+                text = text.split("```", 1)[1].split("```", 1)[0].strip()
+        except (IndexError, ValueError):
+            # markdown 代码块不完整，尝试直接解析
+            pass
 
         data = json.loads(text)
         if isinstance(data, dict):

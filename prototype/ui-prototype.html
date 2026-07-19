@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CareerCraft Agent — 职业智能体</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="qwebchannel.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <style>
     /* ─── Linear Design System Tokens ─── */
@@ -1069,7 +1070,6 @@
       if (typeof qt === 'undefined' || !qt.webChannelTransport) {
         console.log('[Bridge] Qt WebChannel not available');
         window.pybridgeReady = false;
-        showBridgeStatus('Python 桥接未就绪，请检查应用状态', 'error');
         return;
       }
       try {
@@ -1077,12 +1077,10 @@
           window.pybridge = channel.objects.pybridge;
           window.pybridgeReady = true;
           console.log('[Bridge] Python bridge connected');
-          showBridgeStatus('Python 后端已连接', 'connected');
           loadDataFromPython();
         });
       } catch (e) {
         console.error('[Bridge] QWebChannel init failed:', e);
-        showBridgeStatus('桥接初始化失败: ' + e.message, 'error');
       }
     }
 
@@ -1894,38 +1892,11 @@
 
     /* ─── Page init ─── */
     document.addEventListener('DOMContentLoaded', function() {
+      initBridge();
       // URL hash routing
       var page = new URLSearchParams(window.location.search).get('page');
       if (page) switchPage(page, null);
-      // 显示等待桥接状态
-      showBridgeStatus('正在连接 Python 后端...', 'pending');
     });
-
-    function showBridgeStatus(message, status) {
-      var statusEl = document.getElementById('bridge-status');
-      if (!statusEl) {
-        statusEl = document.createElement('div');
-        statusEl.id = 'bridge-status';
-        statusEl.style.cssText = 'position: fixed; top: 8px; right: 8px; z-index: 99999; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 510; transition: all 0.3s ease;';
-        document.body.appendChild(statusEl);
-      }
-      if (status === 'pending') {
-        statusEl.style.background = 'rgba(245, 158, 11, 0.15)';
-        statusEl.style.color = '#f59e0b';
-        statusEl.style.border = '1px solid rgba(245, 158, 11, 0.3)';
-      } else if (status === 'connected') {
-        statusEl.style.background = 'rgba(16, 185, 129, 0.15)';
-        statusEl.style.color = '#10b981';
-        statusEl.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-        setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
-      } else if (status === 'error') {
-        statusEl.style.background = 'rgba(239, 68, 68, 0.15)';
-        statusEl.style.color = '#ef4444';
-        statusEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-      }
-      statusEl.textContent = message;
-      statusEl.style.display = 'block';
-    }
   </script>
 </body>
 </html>

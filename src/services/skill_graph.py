@@ -14,25 +14,8 @@ from typing import Any, Dict, List, Optional, Set
 
 def _default_graph_path() -> str:
     """获取 skill_graph.json 默认路径"""
-    candidates: List[str] = []
-    bundle_root = getattr(sys, "_MEIPASS", None)
-    if bundle_root:
-        candidates.append(os.path.join(bundle_root, "src", "data", "skill_graph.json"))
-
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    executable_dir = os.path.dirname(os.path.abspath(sys.executable))
-    candidates.extend(
-        [
-            os.path.join(base, "data", "skill_graph.json"),
-            os.path.join(executable_dir, "src", "data", "skill_graph.json"),
-            os.path.join(executable_dir, "_internal", "src", "data", "skill_graph.json"),
-        ]
-    )
-
-    for path in candidates:
-        if os.path.isfile(path):
-            return path
-    return candidates[0]
+    return os.path.join(base, "data", "skill_graph.json")
 
 
 class SkillGraph:

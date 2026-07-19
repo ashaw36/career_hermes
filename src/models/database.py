@@ -6,15 +6,15 @@ SQLAlchemy 2.0 async + aiosqlite，启用 WAL 模式保证性能和崩溃恢复�
 
 from __future__ import annotations
 
-from typing import AsyncGenerator
+import os
+from pathlib import Path
+from typing import AsyncGenerator, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-from src.utils.paths import get_app_data_dir
-
-# 数据库文件路径：用户可写应用数据目录
-DEFAULT_DB_DIR = get_app_data_dir()
+# 数据库文件路径：~/.careercraft/career.db
+DEFAULT_DB_DIR = Path.home() / ".careercraft"
 DEFAULT_DB_PATH = DEFAULT_DB_DIR / "career.db"
 
 # 确保目录存在

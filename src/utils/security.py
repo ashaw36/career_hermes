@@ -10,9 +10,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+from pathlib import Path
 from typing import Optional
-
-from src.utils.paths import get_app_data_dir
 
 try:
     import keyring
@@ -31,18 +30,15 @@ except ImportError:
 
 
 # 存储路径
-SECURE_DIR = get_app_data_dir() / "secure"
+SECURE_DIR = Path.home() / ".careercraft" / "secure"
+SECURE_DIR.mkdir(parents=True, exist_ok=True)
 
 SALT_FILE = SECURE_DIR / ".salt"
-
-
-def _ensure_secure_dir() -> None:
-    SECURE_DIR.mkdir(parents=True, exist_ok=True)
+KEY_FILE = SECURE_DIR / ".key"
 
 
 def _get_or_create_salt() -> bytes:
     """获取或创建随机 salt"""
-    _ensure_secure_dir()
     if SALT_FILE.exists():
         return SALT_FILE.read_bytes()
     salt = os.urandom(16)
@@ -116,7 +112,6 @@ class SecureStorage:
             raise RuntimeError("加密初始化失败")
 
         encrypted = fernet.encrypt(api_key.encode())
-        _ensure_secure_dir()
         key_path = SECURE_DIR / f"{provider_name}.key"
         key_path.write_bytes(encrypted)
         os.chmod(key_path, 0o600)

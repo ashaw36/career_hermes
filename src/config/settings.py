@@ -6,16 +6,16 @@ Pydantic Settings 实现，支持环境变量 + YAML 配置文件。
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import os
+from pathlib import Path
+from typing import List, Optional
 
 import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.utils.paths import get_app_data_dir, get_default_export_dir
-
-# 配置目录：优先用户可写目录，受限环境下回退到工作目录或临时目录
-CONFIG_DIR = get_app_data_dir()
+# 配置目录：~/.careercraft/
+CONFIG_DIR = Path.home() / ".careercraft"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 
 
@@ -49,12 +49,12 @@ class CareerCraftSettings(BaseSettings):
     log_level: str = "INFO"
 
     # 数据库
-    db_path: str = str(get_app_data_dir() / "career.db")
+    db_path: str = str(Path.home() / ".careercraft" / "career.db")
     db_backup_interval_minutes: int = 5
     db_backup_retention_count: int = 10
 
     # 简历导出
-    export_dir: str = str(get_default_export_dir())
+    export_dir: str = str(Path.home() / "Documents" / "CareerCraft")
 
     # LLM 配置（从 YAML 加载后覆盖）
     llm_providers: List[LLMProviderConfig] = Field(default_factory=list)
@@ -80,16 +80,16 @@ class CareerCraftSettings(BaseSettings):
         return upper
 
 
-def _load_yaml_config() -> Dict[str, Any]:
-    """从 config.yaml 加载配置"""
+def _load_yaml_config() -> dict:
+    """从 ~/.careercraft/config.yaml 加载配置"""
     if not CONFIG_FILE.exists():
         return {}
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
-def _save_yaml_config(data: Dict[str, Any]) -> None:
-    """保存配置到 config.yaml"""
+def _save_yaml_config(data: dict) -> None:
+    """保存配置到 ~/.careercraft/config.yaml"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         yaml.dump(data, f, allow_unicode=True, sort_keys=False)

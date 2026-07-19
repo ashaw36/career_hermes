@@ -6,8 +6,8 @@ CareerCraft Agent — 简历生成引擎
 
 from __future__ import annotations
 
+import json
 import logging
-import sys
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -125,7 +125,7 @@ class ResumeBuilder:
         ctx = await self._build_context()
 
         # 加载模板
-        template_dir = self._resolve_template_dir()
+        template_dir = Path(__file__).parent.parent / "ui" / "templates" / "resume"
         env = Environment(
             loader=FileSystemLoader(str(template_dir)),
             autoescape=select_autoescape(["html", "xml"]),
@@ -133,27 +133,6 @@ class ResumeBuilder:
         template = env.get_template(f"{template_name}.md.j2")
 
         return template.render(**ctx)
-
-    @staticmethod
-    def _resolve_template_dir() -> Path:
-        candidates: List[Path] = []
-        bundle_root = getattr(sys, "_MEIPASS", None)
-        if bundle_root:
-            candidates.append(Path(bundle_root) / "src" / "ui" / "templates" / "resume")
-
-        executable_dir = Path(sys.executable).resolve().parent
-        candidates.extend(
-            [
-                Path(__file__).parent.parent / "ui" / "templates" / "resume",
-                executable_dir / "src" / "ui" / "templates" / "resume",
-                executable_dir / "_internal" / "src" / "ui" / "templates" / "resume",
-            ]
-        )
-
-        for path in candidates:
-            if path.is_dir():
-                return path
-        return candidates[0]
 
     async def _build_context(self) -> Dict[str, Any]:
         """构建 Jinja2 渲染上下文"""

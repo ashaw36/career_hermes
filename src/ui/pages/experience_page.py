@@ -35,11 +35,12 @@ from PySide6.QtWidgets import (
 from src.models.entities import Experience
 from src.services.experience_manager import ExperienceManager
 from src.ui.async_tasks import start_async_task
+from src.ui.pages.base_page import BasePage
 
 logger = logging.getLogger(__name__)
 
 
-class ExperiencePage(QWidget):
+class ExperiencePage(BasePage):
     """经历管理页面"""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -199,13 +200,6 @@ class ExperiencePage(QWidget):
             self.list_widget.setCurrentItem(selected_item)
         else:
             self._clear_form()
-
-    def _show_task_error(self, title: str) -> Any:
-        def _handler(exc: Exception) -> None:
-            logger.error("%s: %s", title, exc)
-            QMessageBox.critical(self, title, str(exc))
-
-        return _handler
 
     def _set_form(self, exp: Experience) -> None:
         self._current_exp_id = exp.id
@@ -445,7 +439,7 @@ class ExperiencePage(QWidget):
 
     def _load_import_file(self, tabs: Any, md_edit: Any, text_edit: Any, json_edit: Any, file_edit: Any) -> None:
         """从文件加载导入内容"""
-        filepath, _filter = QFileDialog.getOpenFileName(
+        filepath, _ = QFileDialog.getOpenFileName(
             self, "选择经历文件", "", "All Supported (*.md *.txt *.json *.pdf *.docx);;Markdown (*.md);;Text (*.txt);;JSON (*.json);;PDF (*.pdf);;Word (*.docx);;All Files (*.*)"
         )
         if not filepath:

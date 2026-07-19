@@ -7,7 +7,6 @@ PySide6 QWebEngineView 容器，加载本地 HTML 原型，
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import List, Optional
 

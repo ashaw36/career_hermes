@@ -6,7 +6,6 @@ Pydantic Settings 实现，支持环境变量 + YAML 配置文件。
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import List, Optional
 

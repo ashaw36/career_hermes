@@ -26,9 +26,10 @@ from src.models.entities import Persona
 from src.services.persona_engine import PersonaEngine
 from src.services.resume_builder import ResumeBuilder
 from src.ui.async_tasks import start_async_task
+from src.ui.pages.base_page import BasePage
 
 
-class ResumePage(QWidget):
+class ResumePage(BasePage):
     """简历预览页面"""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -132,12 +133,6 @@ class ResumePage(QWidget):
         for p in self._personas:
             self.combo_persona.addItem(p.name, p.id)
 
-    def _show_task_error(self, title: str) -> Any:
-        def _handler(exc: Exception) -> None:
-            QMessageBox.critical(self, title, str(exc))
-
-        return _handler
-
     def _on_generate(self) -> None:
         """生成简历并预览。"""
         if not self._personas:
@@ -178,7 +173,7 @@ class ResumePage(QWidget):
         settings = get_settings()
         default_dir = settings.export_dir
         default_name = f"简历_{self.combo_persona.currentText()}.md"
-        filepath, _filter = QFileDialog.getSaveFileName(
+        filepath, _ = QFileDialog.getSaveFileName(
             self,
             "导出简历",
             str(Path(default_dir) / default_name),
@@ -223,7 +218,7 @@ class ResumePage(QWidget):
             settings = get_settings()
             default_dir = settings.export_dir
             default_name = f"简历_{self.combo_persona.currentText()}.pdf"
-            filepath, _filter = QFileDialog.getSaveFileName(
+            filepath, _ = QFileDialog.getSaveFileName(
                 self,
                 "导出 PDF 简历",
                 str(Path(default_dir) / default_name),

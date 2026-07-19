@@ -6,12 +6,14 @@ CareerCraft Agent — GUI 业务页面包
 
 from __future__ import annotations
 
+from src.ui.pages.base_page import BasePage
 from src.ui.pages.experience_page import ExperiencePage
 from src.ui.pages.job_match_page import JobMatchPage
 from src.ui.pages.persona_page import PersonaPage
 from src.ui.pages.resume_page import ResumePage
 
 __all__ = [
+    "BasePage",
     "ExperiencePage",
     "JobMatchPage",
     "PersonaPage",

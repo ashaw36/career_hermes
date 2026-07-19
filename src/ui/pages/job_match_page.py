@@ -31,11 +31,12 @@ from src.services.job_matcher import JobMatcher
 from src.services.job_parser import JobParser
 from src.services.persona_engine import PersonaEngine
 from src.ui.async_tasks import start_async_task
+from src.ui.pages.base_page import BasePage
 
 logger = logging.getLogger(__name__)
 
 
-class JobMatchPage(QWidget):
+class JobMatchPage(BasePage):
     """
     岗位匹配页面
 
@@ -217,13 +218,6 @@ class JobMatchPage(QWidget):
             self._job_table.setCellWidget(i, 4, del_btn)
 
         self._job_table.resizeColumnsToContents()
-
-    def _show_task_error(self, title: str) -> Any:
-        def _handler(exc: Exception) -> None:
-            logger.error("%s: %s", title, exc)
-            QMessageBox.critical(self, "错误", f"{title}: {exc}")
-
-        return _handler
 
     def _on_parse_and_match(self) -> None:
         """粘贴 JD → 解析 → 匹配"""

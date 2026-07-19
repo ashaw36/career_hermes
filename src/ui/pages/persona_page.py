@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 from src.models.entities import Persona
 from src.services.persona_engine import PersonaEngine
 from src.ui.async_tasks import start_async_task
+from src.ui.pages.base_page import BasePage
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class CapabilityWeightItem(QWidget):
         return self.edit_skill.text().strip(), self.slider.value()
 
 
-class PersonaPage(QWidget):
+class PersonaPage(BasePage):
     """角色配置页面"""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -225,13 +226,6 @@ class PersonaPage(QWidget):
             self.list_widget.setCurrentItem(selected_item)
         else:
             self._clear_form()
-
-    def _show_task_error(self, title: str) -> Any:
-        def _handler(exc: Exception) -> None:
-            logger.error("%s: %s", title, exc)
-            QMessageBox.critical(self, title, str(exc))
-
-        return _handler
 
     def _set_form(self, persona: Persona) -> None:
         self._current_persona_id = persona.id

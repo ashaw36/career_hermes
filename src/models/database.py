@@ -6,9 +6,8 @@ SQLAlchemy 2.0 async + aiosqlite，启用 WAL 模式保证性能和崩溃恢复�
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base

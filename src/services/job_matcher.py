@@ -14,6 +14,7 @@ Sprint 4 核心服务之三。
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import re
@@ -24,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from src.llm.router import LLMError, LLMRouter
 from src.models.database import AsyncSessionLocal
 from src.models.entities import Experience, JobDesc, JobMatch, Persona
 
@@ -78,6 +80,9 @@ class JobMatcher:
         "declined",
     }
 
+    def __init__(self, llm_router: Optional[LLMRouter] = None) -> None:
+        self.llm = llm_router or LLMRouter()
+
     async def match(self, persona_id: str, job_desc_id: str) -> JobMatch:
         """
         计算匹配度并保存 JobMatch。
@@ -118,7 +123,7 @@ class JobMatcher:
 
             # 从角色的 capability_weights 提取技能列表
             persona_skills = list((persona.capability_weights or {}).keys())
-            job_skills = job_desc.parsed_skills or []
+            job_skills = await self._extract_required_skills(job_desc, persona_skills)
 
             # 计算各项分数
             matched, missing, skill_score = self._calculate_skill_match(
@@ -130,11 +135,12 @@ class JobMatcher:
 
             total = min(100.0, skill_score + exp_score + text_score + other_score)
 
-            breakdown: Dict[str, float] = {
+            breakdown: Dict[str, Any] = {
                 "skill": round(skill_score, 2),
                 "experience": round(exp_score, 2),
                 "text_similarity": round(text_score, 2),
                 "other": round(other_score, 2),
+                "required_skills": job_skills,
             }
 
             # 检查是否已有匹配记录，有则更新
@@ -152,13 +158,13 @@ class JobMatcher:
                 existing.missing_skills = missing
                 existing.score_breakdown = breakdown
                 await session.commit()
-                await session.refresh(existing)
+                loaded_existing = await self._load_match_with_relationships(session, existing.id)
                 logger.info(
                     "JobMatch 已更新: id=%s score=%s",
                     existing.id,
                     existing.match_score,
                 )
-                return existing
+                return loaded_existing or existing
 
             match = JobMatch(
                 persona_id=persona_id,
@@ -172,13 +178,124 @@ class JobMatcher:
             )
             session.add(match)
             await session.commit()
-            await session.refresh(match)
+            loaded_match = await self._load_match_with_relationships(session, match.id)
             logger.info(
                 "JobMatch 已创建: id=%s score=%s",
                 match.id,
                 match.match_score,
             )
-            return match
+            return loaded_match or match
+
+    @staticmethod
+    async def _load_match_with_relationships(session: Any, match_id: str) -> Optional[JobMatch]:
+        result = await session.execute(
+            select(JobMatch)
+            .options(selectinload(JobMatch.persona), selectinload(JobMatch.job_desc))
+            .where(JobMatch.id == match_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def _extract_required_skills(
+        self, job_desc: JobDesc, persona_skills: List[str]
+    ) -> List[str]:
+        """
+        Extract JD skill requirements with LLM first, then fall back to parsed skills
+        and explicit capability keyword hits in the raw JD text.
+        """
+        raw_text = job_desc.raw_text or ""
+        parsed_skills = self._normalize_skill_list(job_desc.parsed_skills or [])
+        llm_skills: List[str] = []
+
+        if raw_text.strip():
+            prompt = self._build_skill_extraction_prompt(raw_text)
+            try:
+                response = await self.llm.chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    json_mode=True,
+                    temperature=0.2,
+                )
+                if isinstance(response, str):
+                    llm_skills = self._parse_skill_extraction_response(response)
+            except (LLMError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                logger.warning("JD 技能需求 LLM 抽取失败，使用降级逻辑: %s", exc)
+
+        text_hits = self._extract_persona_skill_hits(raw_text, persona_skills)
+        return self._merge_skills(llm_skills, parsed_skills, text_hits)
+
+    @staticmethod
+    def _build_skill_extraction_prompt(raw_text: str) -> str:
+        return f"""你是一位招聘 JD 分析助手。请从以下岗位描述中提取岗位明确要求或强相关的技能、工具、方法论、业务领域能力。
+
+要求：
+1. 只输出 JSON 对象，不要解释。
+2. 字段 `required_skills` 必须是字符串数组。
+3. 技能名称保持简洁，例如 Python、SQL、产品规划、供应链管理。
+4. 不要输出学历、城市、薪资、福利、软性泛词。
+
+岗位描述：
+{raw_text[:4000]}
+"""
+
+    @staticmethod
+    def _parse_skill_extraction_response(response: str) -> List[str]:
+        text = response.strip()
+        if "```json" in text:
+            text = text.split("```json", 1)[1].split("```", 1)[0].strip()
+        elif "```" in text:
+            text = text.split("```", 1)[1].split("```", 1)[0].strip()
+
+        data = json.loads(text)
+        if isinstance(data, dict):
+            raw_skills = (
+                data.get("required_skills")
+                or data.get("skills")
+                or data.get("parsed_skills")
+                or []
+            )
+        elif isinstance(data, list):
+            raw_skills = data
+        else:
+            raw_skills = []
+        return JobMatcher._normalize_skill_list(raw_skills)
+
+    @staticmethod
+    def _normalize_skill_list(raw_skills: Any) -> List[str]:
+        skills: List[str] = []
+        if not isinstance(raw_skills, list):
+            return skills
+        for item in raw_skills:
+            if isinstance(item, str):
+                value = item.strip()
+            elif isinstance(item, dict):
+                value = str(item.get("name") or item.get("skill") or "").strip()
+            else:
+                value = str(item).strip()
+            if value:
+                skills.append(value)
+        return JobMatcher._merge_skills(skills)
+
+    @staticmethod
+    def _extract_persona_skill_hits(raw_text: str, persona_skills: List[str]) -> List[str]:
+        text = (raw_text or "").lower()
+        hits: List[str] = []
+        for skill in persona_skills:
+            normalized = str(skill or "").strip()
+            if normalized and normalized.lower() in text:
+                hits.append(normalized)
+        return hits
+
+    @staticmethod
+    def _merge_skills(*skill_groups: List[str]) -> List[str]:
+        merged: List[str] = []
+        seen = set()
+        for group in skill_groups:
+            for skill in group or []:
+                value = str(skill or "").strip()
+                key = value.lower()
+                if value and key not in seen:
+                    seen.add(key)
+                    merged.append(value)
+        return merged
 
     def _calculate_skill_match(
         self,

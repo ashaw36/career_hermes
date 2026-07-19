@@ -626,29 +626,6 @@
       color: var(--accent-violet);
     }
 
-    /* ─── Match Score ─── */
-    .score-ring {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      flex-shrink: 0;
-    }
-
-    .score-ring svg {
-      position: absolute;
-      transform: rotate(-90deg);
-    }
-
-    .score-value {
-      font-size: 22px;
-      font-weight: 590;
-      color: var(--text-primary);
-    }
-
     .match-card {
       display: flex;
       gap: 20px;
@@ -1217,9 +1194,6 @@
           </div>
           <div style="display: flex; gap: 8px; margin: 0 0 16px 0; flex-wrap: wrap;">
             <button class="btn btn-ghost btn-sm" id="lp-filter-all" onclick="filterLearningPaths('all')" style="font-weight: 600; background: var(--bg-tertiary);">全部来源</button>
-            <button class="btn btn-ghost btn-sm" id="lp-filter-skill_graph" onclick="filterLearningPaths('skill_graph')">技能图谱</button>
-            <button class="btn btn-ghost btn-sm" id="lp-filter-jd_gap" onclick="filterLearningPaths('jd_gap')">JD 补充</button>
-            <button class="btn btn-ghost btn-sm" id="lp-filter-manual" onclick="filterLearningPaths('manual')">手动创建</button>
             <button class="btn btn-ghost btn-sm" onclick="loadLearningPathsBySource()">刷新列表</button>
           </div>
           <div id="learning-resources-container">
@@ -1961,27 +1935,18 @@
         var card = document.createElement('div');
         card.className = 'match-card';
         card.style.cursor = 'pointer';
-        var score = job.best_match_score || 0;
-        var offset = 226 - (score / 100) * 226;
-        var strokeColor = score >= 70 ? 'var(--accent-brand)' : (score >= 40 ? 'var(--warning)' : 'var(--danger)');
+        var jobIdLiteral = JSON.stringify(String(job.id || ''));
         card.innerHTML =
-          '<div class="score-ring">' +
-            '<svg width="80" height="80" viewBox="0 0 80 80">' +
-              '<circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>' +
-              '<circle cx="40" cy="40" r="36" fill="none" stroke="' + strokeColor + '" stroke-width="4" stroke-dasharray="226" stroke-dashoffset="' + offset + '" stroke-linecap="round"/>' +
-            '</svg>' +
-            '<span class="score-value">' + Math.round(score) + '</span>' +
-          '</div>' +
           '<div class="match-info" style="flex: 1;">' +
             '<div class="match-title">' + escapeHtml(job.title || '') + '</div>' +
             '<div class="match-company">' + escapeHtml((job.company || '') + ' · ' + (job.location || '') + ' · ' + (job.salary_range || '')) + '</div>' +
             '<div class="match-skills">' + (job.skills || []).slice(0, 6).map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>' +
           '</div>' +
           '<div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">' +
-            '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); viewJobMatches(' + job.id + ')">查看匹配</button>' +
-            '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteJob(' + job.id + ')">删除</button>' +
+            '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); viewJobMatches(' + jobIdLiteral + ')">查看匹配</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deleteJob(' + jobIdLiteral + ')">删除</button>' +
           '</div>';
-        card.addEventListener('click', function() { viewJobMatches(job.id); });
+        card.addEventListener('click', function() { viewJobMatches(String(job.id || '')); });
         container.appendChild(card);
       });
     }
@@ -2794,7 +2759,7 @@
     function filterLearningPaths(source) {
       _currentLpFilter = source;
       // 更新按钮样式
-      ['all', 'skill_graph', 'jd_gap', 'manual'].forEach(function(k) {
+      ['all'].forEach(function(k) {
         var btn = document.getElementById('lp-filter-' + k);
         if (btn) {
           if (k === source) {
@@ -2818,6 +2783,17 @@
       } else {
         allPaths = _learningPathsBySource[source] || [];
       }
+      allPaths = allPaths.map(function(path, idx) {
+        var copy = Object.assign({}, path);
+        copy._renderIndex = idx;
+        return copy;
+      });
+      allPaths.sort(function(a, b) {
+        var aTime = Date.parse(a.created_at || a.updated_at || '') || 0;
+        var bTime = Date.parse(b.created_at || b.updated_at || '') || 0;
+        if (aTime !== bTime) return bTime - aTime;
+        return (b._renderIndex || 0) - (a._renderIndex || 0);
+      });
       // 渲染路径列表
       renderLearningPathList(allPaths);
     }
@@ -2844,13 +2820,13 @@
               '</div>' +
               '<span class="pill">' + escapeHtml(sourceLabel) + '</span>' +
             '</div>' +
-            (items.length ? '<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">' + items.slice(0, 3).map(function(item) {
+            (items.length ? '<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">' + items.map(function(item) {
               var url = item.url || '';
               return '<div style="font-size: 13px; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: var(--bg-secondary); border-radius: 6px;">' +
                 '<span>' + escapeHtml(item.title || '') + '</span>' +
                 (url ? '<button class="btn btn-ghost btn-sm" onclick="copyResourceUrl(\'' + escapeHtml(url).replace(/'/g, "\\'") + '\')" style="font-size: 12px; white-space: nowrap;">复制链接 →</button>' : '') +
               '</div>';
-            }).join('') + (items.length > 3 ? '<div style="font-size: 12px; color: var(--text-quaternary); text-align: center;">还有 ' + (items.length - 3) + ' 项...</div>' : '') + '</div>' : '') +
+            }).join('') + '</div>' : '') +
           '</div>';
       });
       html += '</div>';

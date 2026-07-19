@@ -137,10 +137,18 @@ class JDReframeEngine:
             # 5. 批量保存
             session.add_all(reframes)
             await session.commit()
+            reframe_ids = [r.id for r in reframes]
+            refreshed_result = await session.execute(
+                select(JobMatchExperienceReframe)
+                .options(selectinload(JobMatchExperienceReframe.experience))
+                .where(JobMatchExperienceReframe.id.in_(reframe_ids))
+                .order_by(JobMatchExperienceReframe.created_at.desc())
+            )
+            loaded_reframes = list(refreshed_result.scalars().all())
             logger.info(
                 "JD 经历修饰完成: match_id=%s, count=%d", match_id, len(reframes)
             )
-            return reframes
+            return loaded_reframes
 
     async def _reframe_single_experience(
         self,
@@ -354,8 +362,12 @@ Return a JSON object with exactly these keys:
                 return None
             reframe.reframed_summary = reframed_summary
             await session.commit()
-            await session.refresh(reframe)
-            return reframe
+            refreshed = await session.execute(
+                select(JobMatchExperienceReframe)
+                .options(selectinload(JobMatchExperienceReframe.experience))
+                .where(JobMatchExperienceReframe.id == reframe_id)
+            )
+            return refreshed.scalar_one_or_none()
 
     async def reset_reframe(self, reframe_id: str) -> bool:
         """

@@ -361,8 +361,33 @@ class CareerAPI:
             persona = getattr(m, "persona", None)
         except Exception:
             persona = None
-        parsed_skills = list(getattr(job_desc, "parsed_skills", []) or [])
-        required_skills = parsed_skills or matched_skills + missing_skills
+        parsed_skills = []
+        job_description = ""
+        if job_desc is not None:
+            try:
+                parsed_skills = list(getattr(job_desc, "parsed_skills", []) or [])
+            except Exception:
+                parsed_skills = []
+            try:
+                job_description = (
+                    getattr(job_desc, "raw_text", "")
+                    or getattr(job_desc, "raw_description", "")
+                    or getattr(job_desc, "description", "")
+                    or ""
+                )
+            except Exception:
+                job_description = ""
+        required_skills = list(breakdown.get("required_skills", []) or [])
+        if not required_skills:
+            required_skills = parsed_skills or matched_skills + missing_skills
+        try:
+            resolved_job_title = job_title or getattr(job_desc, "title", "") or ""
+        except Exception:
+            resolved_job_title = job_title or ""
+        try:
+            resolved_persona_name = persona_name or getattr(persona, "name", "") or ""
+        except Exception:
+            resolved_persona_name = persona_name or ""
         return {
             "id": str(m.id) if hasattr(m, "id") else "",
             "persona_id": str(getattr(m, "persona_id", "")) or "",
@@ -382,9 +407,9 @@ class CareerAPI:
             "match_reason": getattr(m, "ai_analysis", "") or getattr(m, "notes", ""),
             "skill_matches": matched_skills,
             "strengths": [],
-            "job_title": job_title or getattr(job_desc, "title", "") or "",
-            "persona_name": persona_name or getattr(persona, "name", "") or "",
-            "job_description": getattr(job_desc, "raw_description", "") or getattr(job_desc, "description", "") or "",
+            "job_title": resolved_job_title,
+            "persona_name": resolved_persona_name,
+            "job_description": job_description,
         }
 
     def list_jobs(self) -> List[Dict[str, Any]]:
@@ -523,7 +548,14 @@ class CareerAPI:
 
     @staticmethod
     def _reframe_to_dict(r: Any) -> Dict[str, Any]:
-        experience = getattr(r, "experience", None)
+        try:
+            experience = getattr(r, "experience", None)
+        except Exception:
+            experience = None
+        try:
+            experience_title = getattr(experience, "title", "") or ""
+        except Exception:
+            experience_title = ""
         return {
             "id": str(r.id) if hasattr(r, "id") else "",
             "job_match_id": str(getattr(r, "job_match_id", "")) or "",
@@ -533,7 +565,7 @@ class CareerAPI:
             "reframed_content": getattr(r, "reframed_summary", "") or "",
             "reframing_strategy": getattr(r, "reframing_strategy", "") or "",
             "target_capability": getattr(r, "reframing_strategy", "") or "",
-            "experience_title": getattr(experience, "title", "") or "",
+            "experience_title": experience_title,
             "created_at": str(getattr(r, "created_at", "")),
         }
 

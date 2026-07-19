@@ -1,7 +1,7 @@
 # CareerCraft Agent — 项目单点入口
 
 > 基于 BMad 框架开发 | 个人职业智能体 | 角色档案驱动
-> 当前阶段：**Sprint 9-10 完成 + 前端补齐 + 文件导入自动分析验收** — P0✅ P1✅ P2✅ P3✅ | 148 tests passed | 前端 7 项缺失功能已接入 Bridge | 文件导入 E2E 验收通过
+> 当前阶段：**Sprint 9-10 完成 + 前端补齐 + 文件导入自动分析验收 + 技能图谱学习路径交互优化** — P0✅ P1✅ P2✅ P3✅ | 149 tests passed | 前端 7 项缺失功能已接入 Bridge | 文件导入 E2E 验收通过 | 技能图谱弹窗+学习路径链接已优化
 
 ## 🔒 已锁定决策（Decision Lock）
 
@@ -114,7 +114,7 @@ CareerCraft Agent 是一个**角色档案驱动的个人职业智能体**，运�
 || `tests/ui/webview/test_bridge.py` | WebView Bridge API 测试（17个） |
 ||| `tests/test_skill_graph.py` | 技能图谱管理测试 |
 
-|**测试总数：148 个用例，全部通过**
+||**测试总数：149 个用例，全部通过**
 
 |**总代码量：~4,300 行 Python + ~2,000 行 HTML/JS（不含测试）**
 
@@ -234,6 +234,14 @@ pytest tests/ -v --tb=short
   - P1 体验增强：技能图谱详情展示描述/前置技能/学习资源跳转、学习路径UI增加描述/链接/步骤、学习路径后端字段名统一 `duration`
   - P2 优化：经历列表排版 `text-overflow: ellipsis`、解析并匹配状态细化提示
   - 测试：**131 passed** 全部通过
+
+- **2026-07-19** — 技能图谱与学习路径交互优化（已确认执行）：
+  - 技能图谱页：点击卡片改为**居中模态弹窗**，前置/关联技能标签可点击跳转，增加「生成学习路径」按钮
+  - 学习路径页：支持 URL 参数 `?skill=xxx&auto=1` 自动触发路径生成；资源卡片显示**可点击链接**（有 url 则直连，无则降级为 Bilibili 搜索）
+  - 后端 `learning_recommender.py`：模板库补充 `url` 字段，LLM prompt 要求返回 `url`
+  - 数据 `skill_graph.json`：高频技能补充 `learning_url`（用户研究、需求分析、Python、SQL、Docker、K8s 等）
+  - 移除 `localStorage` 状态管理（WebView 不支持）
+  - 测试：**149 passed** 全部通过
 
 - **2026-07-19** — 文件导入自动分析测试 + E2E 验收：
   - 新增 `tests/test_import_parser_file.py` (16 测试)：PDF 文本提取、Word 文本提取、LLM 分析、import_file 完整链路、_to_draft 转换

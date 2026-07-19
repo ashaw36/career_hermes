@@ -42,27 +42,27 @@ class LearningRecommender:
     # 学习资源模板库（简化版，可扩展）
     _RESOURCE_TEMPLATES: Dict[str, List[Dict[str, Any]]] = {
         "kubernetes": [
-            {"type": "course", "title": "Kubernetes 基础入门", "source": "KubeAcademy / 某课堂", "estimated_hours": 12},
-            {"type": "project", "title": "部署一个多服务应用到 K8s", "source": "个人项目", "estimated_hours": 20},
+            {"type": "course", "title": "Kubernetes 基础入门", "source": "KubeAcademy / 某课堂", "estimated_hours": 12, "url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/"},
+            {"type": "project", "title": "部署一个多服务应用到 K8s", "source": "个人项目", "estimated_hours": 20, "url": ""},
         ],
         "docker": [
-            {"type": "course", "title": "Docker 实战", "source": "Docker 官方文档", "estimated_hours": 8},
+            {"type": "course", "title": "Docker 实战", "source": "Docker 官方文档", "estimated_hours": 8, "url": "https://docs.docker.com/get-started/"},
         ],
         "grpc": [
-            {"type": "article", "title": "gRPC 设计理念与实践", "source": "谷歌官方文档", "estimated_hours": 6},
-            {"type": "project", "title": "实现一个 gRPC 服务端与客户端", "source": "个人项目", "estimated_hours": 15},
+            {"type": "article", "title": "gRPC 设计理念与实践", "source": "谷歌官方文档", "estimated_hours": 6, "url": "https://grpc.io/docs/what-is-grpc/introduction/"},
+            {"type": "project", "title": "实现一个 gRPC 服务端与客户端", "source": "个人项目", "estimated_hours": 15, "url": ""},
         ],
         "python": [
-            {"type": "course", "title": "Python 高级编程", "source": "官方文档 / 网易课堂", "estimated_hours": 20},
+            {"type": "course", "title": "Python 高级编程", "source": "官方文档 / 网易课堂", "estimated_hours": 20, "url": "https://docs.python.org/zh-cn/3/tutorial/"},
         ],
         "sql": [
-            {"type": "course", "title": "SQL 性能优化", "source": "某课堂", "estimated_hours": 10},
+            {"type": "course", "title": "SQL 性能优化", "source": "某课堂", "estimated_hours": 10, "url": "https://sqlbolt.com/"},
         ],
         "machine learning": [
-            {"type": "book", "title": "机器学习实战", "source": "图书馆 / 亚马逊", "estimated_hours": 40},
+            {"type": "book", "title": "机器学习实战", "source": "图书馆 / 亚马逊", "estimated_hours": 40, "url": "https://www.amazon.com/dp/1617290181"},
         ],
         "product management": [
-            {"type": "course", "title": "产品经理成长计划", "source": "三节课", "estimated_hours": 16},
+            {"type": "course", "title": "产品经理成长计划", "source": "三节课", "estimated_hours": 16, "url": "https://www.sanjieke.cn/"},
         ],
     }
 
@@ -103,7 +103,7 @@ class LearningRecommender:
         persona_name = persona.name if persona else "求职者"
         skills_str = ", ".join(missing_skills)
 
-        prompt = f"""你是一位职业发展顾问。请为一位“{persona_name}”角色的用户
+        prompt = f"""你是一位职业发展顾问。请为一位"{persona_name}"角色的用户
 针对以下缺失技能，生成一份精简的学习路径推荐。
 
 缺失技能: {skills_str}
@@ -114,6 +114,7 @@ class LearningRecommender:
 - source: 推荐来源（平台名或书名）
 - estimated_hours: 预估学习小时数（整数）
 - priority: 优先级（1-5，1最高）
+- url: 资源的访问链接（如果有真实链接则填写，否则留空字符串）
 
 要求：
 1. 每个技能至少推荐 1 个资源
@@ -134,9 +135,11 @@ class LearningRecommender:
             items = json.loads(response)
             if not isinstance(items, list):
                 raise ValueError("返回不是数组")
-            # 添加状态字段
+            # 添加状态字段并确保 url 存在
             for item in items:
                 item["status"] = "pending"
+                if "url" not in item:
+                    item["url"] = ""
             return items
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning("LLM 返回解析失败: %s", e)
@@ -161,6 +164,7 @@ class LearningRecommender:
                         "title": f"{skill} 基础入门",
                         "source": "线上学习平台",
                         "estimated_hours": 10,
+                        "url": "",
                     }
                 ]
 
@@ -177,6 +181,7 @@ class LearningRecommender:
                         "estimated_hours": tmpl.get("estimated_hours", 10),
                         "priority": priority,
                         "status": "pending",
+                        "url": tmpl.get("url", ""),
                     }
                 )
             priority += 1

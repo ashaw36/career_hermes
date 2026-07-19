@@ -6,7 +6,8 @@
     "aliases": ["用户调研", "用户洞察"],
     "prerequisites": [],
     "level": 1,
-    "description": "通过访谈、问卷、可用性测试等方法深入理解用户需求与行为"
+    "description": "通过访谈、问卷、可用性测试等方法深入理解用户需求与行为",
+    "learning_url": "https://www.nngroup.com/articles/user-research-methods/"
   },
   {
     "id": "requirement_analysis",
@@ -15,7 +16,8 @@
     "aliases": ["需求挖掘", "需求文档"],
     "prerequisites": ["user_research"],
     "level": 2,
-    "description": "从用户痛点和业务目标出发，提炼可执行的产品需求"
+    "description": "从用户痛点和业务目标出发，提炼可执行的产品需求",
+    "learning_url": "https://www.nngroup.com/articles/requirements-definition/"
   },
   {
     "id": "prd_writing",
@@ -141,7 +143,8 @@
     "aliases": ["Python编程", "Py"],
     "prerequisites": [],
     "level": 1,
-    "description": "使用Python进行脚本编写、数据处理与自动化开发"
+    "description": "使用Python进行脚本编写、数据处理与自动化开发",
+    "learning_url": "https://docs.python.org/zh-cn/3/tutorial/"
   },
   {
     "id": "sql",
@@ -150,7 +153,8 @@
     "aliases": ["结构化查询语言", "数据库查询"],
     "prerequisites": [],
     "level": 1,
-    "description": "编写查询语句从关系型数据库中提取、处理数据"
+    "description": "编写查询语句从关系型数据库中提取、处理数据",
+    "learning_url": "https://sqlbolt.com/"
   },
   {
     "id": "git_collaboration",
@@ -186,7 +190,18 @@
     "aliases": ["容器化", "容器技术"],
     "prerequisites": [],
     "level": 2,
-    "description": "使用容器技术封装应用环境，实现一致部署与快速扩展"
+    "description": "使用容器技术封装应用环境，实现一致部署与快速扩展",
+    "learning_url": "https://docs.docker.com/get-started/"
+  },
+  {
+    "id": "kubernetes",
+    "name": "Kubernetes",
+    "category": "technical",
+    "aliases": ["K8s", "容器编排"],
+    "prerequisites": ["docker"],
+    "level": 3,
+    "description": "使用 Kubernetes 进行容器编排、自动扩缩与集群管理",
+    "learning_url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/"
   },
   {
     "id": "frontend_basics",

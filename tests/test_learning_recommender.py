@@ -71,3 +71,11 @@ class TestResourceTemplates:
                 assert "title" in t
                 assert "type" in t
                 assert "estimated_hours" in t
+                assert "url" in t
+
+    def test_url_field_in_recommendations(self, recommender: LearningRecommender) -> None:
+        items = recommender._recommend_by_template(["Docker", "UnknownSkill"])
+        assert len(items) >= 1
+        for item in items:
+            assert "url" in item
+            assert isinstance(item["url"], str)

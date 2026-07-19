@@ -148,7 +148,7 @@ class TestCareerBridge:
         assert data.get("success") is True
         assert "data" in data
         assert isinstance(data["data"], list)
-        assert len(data["data"]) == 50
+        assert len(data["data"]) == 51
 
     def test_search_skills_returns_json(self, bridge: CareerBridge) -> None:
         """searchSkills 返回搜索结果"""

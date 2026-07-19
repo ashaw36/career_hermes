@@ -456,7 +456,7 @@ class CareerAPI:
     # ——— 学习路径 ———
 
     def get_learning_path(self, skill: str) -> List[Dict[str, Any]]:
-        """获取学习路径，字段名统一为 duration"""
+        """获取学习路径，字段名统一为 duration，确保每个资源包含 url"""
         try:
             personas = self.get_personas()
             if not personas:
@@ -476,6 +476,11 @@ class CareerAPI:
                 # 兼容 estimated_hours / duration
                 if "estimated_hours" in normalized and "duration" not in normalized:
                     normalized["duration"] = str(normalized.pop("estimated_hours")) + " 小时"
+                # 确保 url 字段存在（从 link 降级复制）
+                if "url" not in normalized and "link" in normalized:
+                    normalized["url"] = normalized.pop("link")
+                if "url" not in normalized:
+                    normalized["url"] = ""
                 result.append(normalized)
             return result
         except Exception as e:

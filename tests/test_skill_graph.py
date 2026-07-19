@@ -21,7 +21,7 @@ class TestSkillGraph:
     def test_load_50_nodes(self, graph: SkillGraph) -> None:
         """加载后应包含 50 个节点"""
         nodes = graph.all_nodes()
-        assert len(nodes) == 50
+        assert len(nodes) == 51
 
     def test_node_structure(self, graph: SkillGraph) -> None:
         """每个节点必备字段完整"""

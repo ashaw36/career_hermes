@@ -510,6 +510,122 @@
       color: var(--accent-violet);
     }
 
+    /* ─── Skill Modal ─── */
+    .skill-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 10001;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .skill-modal-overlay.active {
+      display: flex;
+    }
+    .skill-modal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-standard);
+      border-radius: var(--radius-lg);
+      max-width: 560px;
+      width: 100%;
+      max-height: 80vh;
+      overflow: auto;
+      padding: 24px;
+      position: relative;
+    }
+    .skill-modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .skill-modal-close:hover {
+      color: var(--text-primary);
+    }
+    .skill-modal-title {
+      font-size: 18px;
+      font-weight: 590;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      padding-right: 32px;
+    }
+    .skill-modal-tag {
+      display: inline-block;
+      margin-bottom: 14px;
+    }
+    .skill-modal-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+    .skill-modal-section {
+      margin-bottom: 16px;
+    }
+    .skill-modal-section-title {
+      font-size: 12px;
+      font-weight: 510;
+      color: var(--text-quaternary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .skill-modal-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .skill-modal-pills .pill {
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .skill-modal-pills .pill:hover {
+      border-color: var(--accent-brand);
+      color: var(--accent-violet);
+    }
+    .skill-modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .skill-modal-link {
+      color: var(--accent-violet);
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .skill-modal-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ─── Resource Card Link ─── */
+    .resource-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent-violet);
+      font-size: 13px;
+      text-decoration: none;
+      margin-top: 8px;
+    }
+    .resource-link:hover {
+      text-decoration: underline;
+    }
+    .resource-link.search {
+      color: var(--text-tertiary);
+    }
+    .resource-link.search:hover {
+      color: var(--accent-violet);
+    }
+
     /* ─── Match Score ─── */
     .score-ring {
       width: 80px;
@@ -1096,10 +1212,6 @@
           <div id="skills-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
             <div style="color: var(--text-tertiary); padding: 24px; text-align: center; grid-column: 1 / -1;">加载中...</div>
           </div>
-          <div id="skill-detail-panel" class="card" style="margin-top: 16px; display: none;">
-            <div class="card-title" id="skill-detail-title">关联技能</div>
-            <div id="skill-detail-content" style="margin-top: 10px;"></div>
-          </div>
         </div>
 
         <!-- Learning Page -->
@@ -1116,6 +1228,32 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Skill Detail Modal -->
+  <div id="skill-modal" class="skill-modal-overlay" onclick="if(event.target===this)closeSkillModal()">
+    <div class="skill-modal">
+      <button class="skill-modal-close" onclick="closeSkillModal()">×</button>
+      <div class="skill-modal-title" id="skill-modal-title"></div>
+      <div class="skill-modal-tag" id="skill-modal-tag"></div>
+      <div class="skill-modal-desc" id="skill-modal-desc"></div>
+      <div class="skill-modal-section" id="skill-modal-prereqs" style="display:none;">
+        <div class="skill-modal-section-title">前置技能</div>
+        <div class="skill-modal-pills" id="skill-modal-prereqs-list"></div>
+      </div>
+      <div class="skill-modal-section" id="skill-modal-related" style="display:none;">
+        <div class="skill-modal-section-title">关联技能</div>
+        <div class="skill-modal-pills" id="skill-modal-related-list"></div>
+      </div>
+      <div class="skill-modal-section" id="skill-modal-learning" style="display:none;">
+        <div class="skill-modal-section-title">学习资源</div>
+        <a id="skill-modal-learning-link" class="skill-modal-link" href="#" target="_blank"></a>
+      </div>
+      <div class="skill-modal-actions">
+        <button class="btn btn-primary" id="skill-modal-path-btn" onclick="generatePathFromModal()">生成学习路径</button>
+        <button class="btn btn-ghost" onclick="closeSkillModal()">关闭</button>
+      </div>
+    </div>
   </div>
 
   <!-- Global Loading Overlay -->
@@ -2293,38 +2431,96 @@
     }
 
     function showSkillDetail(skill) {
-      var panel = document.getElementById('skill-detail-panel');
-      var title = document.getElementById('skill-detail-title');
-      var content = document.getElementById('skill-detail-content');
-      if (!panel || !content) return;
-      panel.style.display = 'block';
-      title.textContent = (skill.name || skill.id || '') + ' — 详情';
+      var modal = document.getElementById('skill-modal');
+      document.getElementById('skill-modal-title').textContent = skill.name || skill.id || '';
+      document.getElementById('skill-modal-tag').innerHTML = '<span class="pill pill-accent">' + escapeHtml(skill.category || '未分类') + '</span>';
+      document.getElementById('skill-modal-desc').textContent = skill.description || '暂无描述';
 
-      var html = '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px;">' + escapeHtml(skill.description || '暂无描述') + '</div>';
-
-      var prereqs = (skill.prerequisites || []);
+      // 前置技能
+      var prereqs = skill.prerequisites || [];
+      var prereqsSection = document.getElementById('skill-modal-prereqs');
+      var prereqsList = document.getElementById('skill-modal-prereqs-list');
       if (prereqs.length) {
-        html += '<div style="margin-bottom: 12px;"><div style="font-size: 12px; color: var(--text-quaternary); margin-bottom: 6px;">前置技能</div><div style="display: flex; flex-wrap: wrap; gap: 8px;">' + prereqs.map(function(s){ return '<span class="pill">' + escapeHtml(s) + '</span>'; }).join('') + '</div></div>';
+        prereqsSection.style.display = 'block';
+        prereqsList.innerHTML = prereqs.map(function(pid) {
+          var s = gSkills.find(function(x) { return x.id === pid; });
+          var name = s ? (s.name || s.id) : pid;
+          return '<span class="pill" onclick="clickSkillPill(\'' + escapeHtml(pid) + '\')">' + escapeHtml(name) + '</span>';
+        }).join('');
+      } else {
+        prereqsSection.style.display = 'none';
       }
 
-      var related = (skill.related || skill.connected || []);
+      // 关联技能
+      var related = skill.related || skill.connected || [];
+      var relatedSection = document.getElementById('skill-modal-related');
+      var relatedList = document.getElementById('skill-modal-related-list');
       if (related.length) {
-        html += '<div style="margin-bottom: 12px;"><div style="font-size: 12px; color: var(--text-quaternary); margin-bottom: 6px;">关联技能</div><div style="display: flex; flex-wrap: wrap; gap: 8px;">';
-        related.forEach(function(r) {
-          var name = typeof r === 'string' ? r : (r.name || r.id || '');
-          html += '<span class="pill">' + escapeHtml(name) + '</span>';
-        });
-        html += '</div></div>';
+        relatedSection.style.display = 'block';
+        relatedList.innerHTML = related.map(function(r) {
+          var rid = typeof r === 'string' ? r : (r.id || '');
+          var rname = typeof r === 'string' ? r : (r.name || r.id || '');
+          var rs = gSkills.find(function(x) { return x.id === rid; });
+          if (rs) rname = rs.name || rs.id;
+          return '<span class="pill" onclick="clickSkillPill(\'' + escapeHtml(rid) + '\')">' + escapeHtml(rname) + '</span>';
+        }).join('');
+      } else {
+        relatedSection.style.display = 'none';
       }
 
-      html += '<button class="btn btn-primary btn-sm" onclick="switchPage(\'learning\'); document.getElementById(\'learning-skill-input\').value = \'' + escapeHtml(skill.name || skill.id || '') + '\'; generateLearningPath();">查看学习资源</button>';
-      content.innerHTML = html;
+      // 学习资源入口
+      var learningSection = document.getElementById('skill-modal-learning');
+      var learningLink = document.getElementById('skill-modal-learning-link');
+      if (skill.learning_url) {
+        learningSection.style.display = 'block';
+        learningLink.href = skill.learning_url;
+        learningLink.textContent = '访问学习资源 →';
+      } else {
+        learningSection.style.display = 'none';
+      }
+
+      // 保存当前技能到按钮
+      document.getElementById('skill-modal-path-btn').dataset.skillName = skill.name || skill.id || '';
+
+      modal.classList.add('active');
+    }
+
+    function closeSkillModal() {
+      document.getElementById('skill-modal').classList.remove('active');
+    }
+
+    function clickSkillPill(skillId) {
+      var skill = gSkills.find(function(s) { return s.id === skillId; });
+      if (!skill) return;
+      closeSkillModal();
+      setTimeout(function() { showSkillDetail(skill); }, 50);
+    }
+
+    function generatePathFromModal() {
+      var skillName = document.getElementById('skill-modal-path-btn').dataset.skillName;
+      closeSkillModal();
+      switchPage('learning');
+      setTimeout(function() {
+        var input = document.getElementById('learning-skill-input');
+        if (input) input.value = skillName;
+        generateLearningPath();
+      }, 100);
     }
 
     /* ─── Learning Page ─── */
     function loadLearningPage() {
-      // 加载已保存的状态
       renderLearningResources(window._learningResources || []);
+      // 支持 URL 参数 skill 和 auto 自动触发
+      var params = new URLSearchParams(window.location.search);
+      var skill = params.get('skill');
+      var auto = params.get('auto');
+      if (skill) {
+        var input = document.getElementById('learning-skill-input');
+        if (input) input.value = skill;
+        if (auto === '1') {
+          generateLearningPath();
+        }
+      }
     }
 
     function generateLearningPath() {
@@ -2355,12 +2551,12 @@
         return;
       }
       var html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
-      var statuses = getLearningStatuses();
       list.forEach(function(item, idx) {
-        var status = statuses[item.title || idx] || '未开始';
-        var statusClass = status === '已完成' ? 'pill-success' : (status === '学习中' ? 'pill-accent' : '');
-        var link = item.link || item.url || '';
+        var status = item.status || '待学习';
+        var statusClass = status === 'completed' ? 'pill-success' : (status === 'in_progress' ? 'pill-accent' : '');
+        var url = item.url || '';
         var steps = item.steps || [];
+        var searchUrl = 'https://search.bilibili.com/all?keyword=' + encodeURIComponent((item.title || '') + ' ' + (item.type || ''));
         html +=
           '<div class="card" style="margin-bottom: 0;">' +
             '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
@@ -2368,14 +2564,14 @@
                 '<div class="card-title" style="font-size: 14px;">' + escapeHtml(item.title || '') + '</div>' +
                 '<div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">' + escapeHtml(item.type || '') + ' · ' + escapeHtml(item.duration || '') + ' · 优先级: ' + escapeHtml(String(item.priority || '')) + '</div>' +
               '</div>' +
-              '<select class="form-select" style="width: 100px; font-size: 12px;" onchange="updateLearningStatus(' + JSON.stringify(item.title || String(idx)) + ', this.value)">' +
-                '<option value="未开始" ' + (status==='未开始'?'selected':'') + '>未开始</option>' +
-                '<option value="学习中" ' + (status==='学习中'?'selected':'') + '>学习中</option>' +
-                '<option value="已完成" ' + (status==='已完成'?'selected':'') + '>已完成</option>' +
+              '<select class="form-select" style="width: 100px; font-size: 12px;" onchange="updateLearningStatus(' + idx + ', this.value)">' +
+                '<option value="pending" ' + (status==='pending'?'selected':'') + '>待学习</option>' +
+                '<option value="in_progress" ' + (status==='in_progress'?'selected':'') + '>学习中</option>' +
+                '<option value="completed" ' + (status==='completed'?'selected':'') + '>已完成</option>' +
               '</select>' +
             '</div>' +
             (item.description ? '<div style="font-size: 13px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">' + escapeHtml(item.description) + '</div>' : '') +
-            (link ? '<div style="margin-top: 8px;"><a href="' + escapeHtml(link) + '" target="_blank" style="color: var(--accent-violet); font-size: 13px;">访问链接 →</a></div>' : '') +
+            (url ? '<a class="resource-link" href="' + escapeHtml(url) + '" target="_blank">访问资源 →</a>' : '<a class="resource-link search" href="' + searchUrl + '" target="_blank">Bilibili 搜索 →</a>') +
             (steps.length ? '<div style="margin-top: 10px;"><div style="font-size: 11px; color: var(--text-quaternary); margin-bottom: 4px;">学习步骤</div><ol style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 18px;">' + steps.map(function(s){ return '<li>' + escapeHtml(s) + '</li>'; }).join('') + '</ol></div>' : '') +
           '</div>';
       });
@@ -2383,16 +2579,10 @@
       container.innerHTML = html;
     }
 
-    function getLearningStatuses() {
-      try {
-        return JSON.parse(localStorage.getItem('careercraft_learning_status') || '{}');
-      } catch (e) { return {}; }
-    }
-
-    function updateLearningStatus(title, status) {
-      var statuses = getLearningStatuses();
-      statuses[title] = status;
-      localStorage.setItem('careercraft_learning_status', JSON.stringify(statuses));
+    function updateLearningStatus(idx, status) {
+      if (window._learningResources && window._learningResources[idx]) {
+        window._learningResources[idx].status = status;
+      }
     }
 
     /* ─── Page init ─── */

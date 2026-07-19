@@ -165,6 +165,15 @@ class CareerBridge(QObject):
             logger.error(f"Bridge chatRefineResume error: {e}")
             return self._err(str(e))
 
+    @Slot(result=str)
+    def getSettings(self) -> str:
+        try:
+            data = self._api.get_settings()
+            return json.dumps(data, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Bridge getSettings error: {e}")
+            return self._err(str(e))
+
     @Slot(str, result=str)
     def saveSettings(self, settings_json: str) -> str:
         try:

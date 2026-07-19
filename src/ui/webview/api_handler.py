@@ -886,34 +886,78 @@ class CareerAPI:
             logger.error(f"import_file error: {e}")
             return {"success": False, "error": str(e)}
 
-    def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """保存设置：安全存储 API Key，保存模型选择"""
+    def get_settings(self) -> Dict[str, Any]:
+        """读取设置：返回 LLM Provider 配置，不返回真实 API Key"""
         try:
-            model = data.get("model", "")
-            api_key = data.get("api_key", "")
+            from src.config.settings import CONFIG_FILE, _load_yaml_config, create_default_config
 
-            # 保存 API Key（尝试推断 provider，失败不阻断）
-            if api_key:
-                provider = "default"
-                if model.startswith("gpt") or model.startswith("o1") or model.startswith("o3"):
-                    provider = "openai"
-                elif model.startswith("claude"):
-                    provider = "anthropic"
-                elif model.startswith("qwen"):
-                    provider = "tongyi"
-                try:
-                    SecureStorage.store_api_key(provider, api_key)
-                except Exception as e:
-                    logger.warning(f"API Key 安全存储失败: {e}")
-
-            # 保存模型偏好到 YAML 配置
-            from src.config.settings import _load_yaml_config, _save_yaml_config
+            if not CONFIG_FILE.exists():
+                create_default_config()
             config = _load_yaml_config()
-            config["preferred_model"] = model
-            _save_yaml_config(config)
+            providers = []
+            for provider in config.get("llm_providers", []):
+                name = provider.get("name", "")
+                providers.append({
+                    "name": name,
+                    "base_url": provider.get("base_url"),
+                    "default_model": provider.get("default_model", ""),
+                    "enabled": provider.get("enabled", True),
+                    "has_key": SecureStorage.has_api_key(name),
+                })
 
-            logger.info(f"保存设置: model={model}")
-            return {"success": True, "message": "设置已保存"}
+            return {
+                "success": True,
+                "data": {
+                    "llm_providers": providers,
+                    "default_llm_provider": config.get("default_llm_provider", ""),
+                },
+            }
+        except Exception as e:
+            logger.error(f"get_settings error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def save_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """保存设置：安全存储 API Key，保存 LLM Provider 配置"""
+        try:
+            from src.config import settings as settings_module
+
+            if "providers" not in data:
+                logger.info("忽略旧版设置保存请求")
+                return {"success": True, "message": "配置已保存"}
+
+            config = settings_module._load_yaml_config()
+            providers = []
+
+            for item in data.get("providers", []):
+                name = item.get("name", "").strip()
+                if not name:
+                    continue
+
+                api_key = item.get("api_key", "").strip()
+                if api_key:
+                    try:
+                        SecureStorage.store_api_key(name, api_key)
+                    except Exception as e:
+                        logger.warning(f"API Key 安全存储失败: {e}")
+
+                base_url = item.get("base_url")
+                if isinstance(base_url, str):
+                    base_url = base_url.strip() or None
+
+                providers.append({
+                    "name": name,
+                    "base_url": base_url,
+                    "default_model": item.get("default_model", "").strip(),
+                    "enabled": bool(item.get("enabled", True)),
+                })
+
+            config["llm_providers"] = providers
+            config["default_llm_provider"] = data.get("default_provider", "")
+            settings_module._save_yaml_config(config)
+            settings_module._settings = None
+
+            logger.info("保存 LLM Provider 设置")
+            return {"success": True, "message": "配置已保存"}
         except Exception as e:
             logger.error(f"save_settings error: {e}")
             return {"success": False, "error": str(e)}

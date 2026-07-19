@@ -1156,46 +1156,57 @@
         <!-- Settings Page -->
         <div class="page" id="page-settings">
           <div class="section-title">设置</div>
-          <div class="grid-2" style="max-width: 640px;">
-            <div class="card">
+          <div>
+            <div class="card" style="max-width: 640px;">
               <div class="card-title">LLM 配置</div>
               <div style="margin-top: 16px;">
+                <!-- Provider 选择 / 添加 -->
                 <div class="form-group">
-                  <label class="form-label">默认模型</label>
-                  <select class="form-select" id="settings-model">
-                    <option value="gpt-4o">gpt-4o</option>
-                    <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
-                    <option value="qwen-turbo">qwen-turbo</option>
+                  <label class="form-label">当前 Provider</label>
+                  <div style="display: flex; gap: 8px;">
+                    <select class="form-select" id="settings-provider-select" onchange="selectProviderToEdit()" style="flex: 1;">
+                      <option value="">加载中...</option>
+                    </select>
+                    <button class="btn btn-ghost btn-sm" onclick="addNewProvider()">+ 添加</button>
+                    <button class="btn btn-ghost btn-sm" onclick="removeCurrentProvider()" style="color: #e74c3c;">删除</button>
+                  </div>
+                </div>
+
+                <div id="provider-edit-form">
+                  <div class="form-group">
+                    <label class="form-label">Provider 名称</label>
+                    <input class="form-input" id="settings-provider-name" type="text" placeholder="如 tongyi / openai">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Base URL</label>
+                    <input class="form-input" id="settings-base-url" type="text" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">默认模型</label>
+                    <input class="form-input" id="settings-model" type="text" placeholder="如 qwen-max / gpt-4o / 自定义模型名">
+                    <div style="font-size: 12px; color: var(--text-quaternary); margin-top: 4px;">支持任意 OpenAI 兼容 API 的模型名称</div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input class="form-input" id="settings-api-key" type="password" placeholder="留空则保留原值">
+                    <div style="font-size: 12px; color: var(--text-quaternary); margin-top: 4px;">已保存的 Key 不会显示</div>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="settings-enabled" style="width: 16px; height: 16px;">
+                    <label for="settings-enabled" style="font-size: 13px; color: var(--text-secondary); cursor: pointer;">启用此 Provider</label>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+                  <label class="form-label">默认 Provider</label>
+                  <select class="form-select" id="settings-default-provider">
+                    <option value="">加载中...</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">API Key</label>
-                  <input class="form-input" id="settings-api-key" type="password" placeholder="sk-...">
-                </div>
-                <div class="toolbar">
+
+                <div class="toolbar" style="margin-top: 16px;">
                   <button class="btn btn-primary" onclick="saveSettings()">保存配置</button>
                   <button class="btn btn-ghost" onclick="testLLMConnection()">测试连接</button>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <div class="card-title">应用偏好</div>
-              <div style="margin-top: 16px;">
-                <div class="form-group">
-                  <label class="form-label">主题</label>
-                  <select class="form-select">
-                    <option>深色 (默认)</option>
-                    <option>浅色</option>
-                    <option>跟随系统</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">默认经历数</label>
-                  <input class="form-input" type="number" value="5">
-                </div>
-                <div class="toolbar">
-                  <button class="btn btn-primary" onclick="saveAppPreferences()">保存偏好</button>
-                  <button class="btn btn-ghost" onclick="resetAppPreferences()">重置</button>
                 </div>
               </div>
             </div>
@@ -1342,6 +1353,9 @@
       // Jobs
       loadPersonasForJobs();
       loadJobs();
+
+      // Settings
+      loadSettings();
     }
 
     /* ─── UI Helpers ─── */
@@ -2389,26 +2403,151 @@
     }
 
     /* ─── Settings ─── */
-    function saveAppPreferences() {
-      alert('应用偏好已保存（当前版本为本地缓存，重启后生效）。');
+    var _settingsProviders = [];
+    var _settingsDefaultProvider = "";
+    var _settingsCurrentProviderIndex = 0;
+
+    function loadSettings() {
+      if (!window.pybridge) return;
+      window.pybridge.getSettings(function(result) {
+        try {
+          var resp = JSON.parse(result);
+          if (resp.success && resp.data) {
+            _settingsProviders = resp.data.llm_providers || [];
+            _settingsDefaultProvider = resp.data.default_llm_provider || "";
+            renderProviderSelector();
+            renderDefaultProviderSelector();
+            var defaultIndex = 0;
+            for (var i = 0; i < _settingsProviders.length; i++) {
+              if (_settingsProviders[i].name === _settingsDefaultProvider) {
+                defaultIndex = i;
+                break;
+              }
+            }
+            var sel = document.getElementById('settings-provider-select');
+            if (sel && _settingsProviders.length > 0) sel.value = defaultIndex.toString();
+            selectProviderToEdit();
+          }
+        } catch (e) { console.error('loadSettings error', e); }
+      });
     }
 
-    function resetAppPreferences() {
-      if (confirm('确定重置所有应用偏好吗？')) {
-        alert('应用偏好已重置。');
+    function renderProviderSelector() {
+      var sel = document.getElementById('settings-provider-select');
+      if (!sel) return;
+      sel.innerHTML = '';
+      _settingsProviders.forEach(function(p, idx) {
+        var opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = p.name + (p.enabled ? '' : ' (已禁用)');
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderDefaultProviderSelector() {
+      var sel = document.getElementById('settings-default-provider');
+      if (!sel) return;
+      sel.innerHTML = '';
+      _settingsProviders.forEach(function(p) {
+        if (!p.enabled) return;
+        var opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.name;
+        if (p.name === _settingsDefaultProvider) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function syncCurrentProviderFromForm() {
+      var idx = _settingsCurrentProviderIndex;
+      if (isNaN(idx) || !_settingsProviders[idx]) return;
+      _settingsProviders[idx].name = document.getElementById('settings-provider-name').value.trim();
+      _settingsProviders[idx].base_url = document.getElementById('settings-base-url').value.trim() || null;
+      _settingsProviders[idx].default_model = document.getElementById('settings-model').value.trim();
+      _settingsProviders[idx].enabled = document.getElementById('settings-enabled').checked;
+    }
+
+    function selectProviderToEdit() {
+      var sel = document.getElementById('settings-provider-select');
+      var idx = parseInt(sel.value);
+      if (isNaN(idx)) idx = 0;
+      var p = _settingsProviders[idx];
+      if (!p) return;
+      _settingsCurrentProviderIndex = idx;
+      document.getElementById('settings-provider-name').value = p.name || '';
+      document.getElementById('settings-base-url').value = p.base_url || '';
+      document.getElementById('settings-model').value = p.default_model || '';
+      document.getElementById('settings-api-key').value = '';
+      document.getElementById('settings-enabled').checked = !!p.enabled;
+    }
+
+    function addNewProvider() {
+      var name = prompt('请输入新 Provider 名称（如 my-openai-proxy）：');
+      if (!name) return;
+      name = name.trim();
+      if (!name) return;
+      for (var i = 0; i < _settingsProviders.length; i++) {
+        if (_settingsProviders[i].name === name) { alert('Provider 已存在'); return; }
+      }
+      _settingsProviders.push({
+        name: name,
+        base_url: '',
+        default_model: '',
+        enabled: true,
+        has_key: false
+      });
+      renderProviderSelector();
+      renderDefaultProviderSelector();
+      document.getElementById('settings-provider-select').value = (_settingsProviders.length - 1).toString();
+      selectProviderToEdit();
+    }
+
+    function removeCurrentProvider() {
+      var sel = document.getElementById('settings-provider-select');
+      var idx = parseInt(sel.value);
+      if (isNaN(idx)) return;
+      var p = _settingsProviders[idx];
+      if (!p) return;
+      if (!confirm('确定删除 Provider "' + p.name + '" 吗？')) return;
+      _settingsProviders.splice(idx, 1);
+      renderProviderSelector();
+      renderDefaultProviderSelector();
+      if (_settingsProviders.length > 0) {
+        document.getElementById('settings-provider-select').value = '0';
+        selectProviderToEdit();
+      } else {
+        _settingsCurrentProviderIndex = 0;
+        document.getElementById('settings-provider-name').value = '';
+        document.getElementById('settings-base-url').value = '';
+        document.getElementById('settings-model').value = '';
+        document.getElementById('settings-api-key').value = '';
+        document.getElementById('settings-enabled').checked = false;
       }
     }
 
     function saveSettings() {
-      var model = document.getElementById('settings-model').value;
-      var apiKey = document.getElementById('settings-api-key').value;
-      var payload = {model: model, api_key: apiKey};
+      syncCurrentProviderFromForm();
+      var selectedIdx = _settingsCurrentProviderIndex;
+      var currentApiKey = document.getElementById('settings-api-key').value.trim();
+      var payload = {
+        providers: _settingsProviders.map(function(p, idx) {
+          return {
+            name: p.name,
+            base_url: p.base_url,
+            default_model: p.default_model,
+            enabled: p.enabled,
+            api_key: idx === selectedIdx ? currentApiKey : ''
+          };
+        }),
+        default_provider: document.getElementById('settings-default-provider').value
+      };
       if (!window.pybridge) return;
       window.pybridge.saveSettings(JSON.stringify(payload), function(result) {
         try {
           var resp = JSON.parse(result);
           if (resp.success) {
             alert('配置已保存');
+            loadSettings();
           } else {
             alert('保存失败: ' + (resp.error || ''));
           }
